@@ -32,6 +32,9 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
+# Set PYTHONPATH so Python can find the 'app' module inside src/runtime/
+ENV PYTHONPATH="src/runtime"
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
