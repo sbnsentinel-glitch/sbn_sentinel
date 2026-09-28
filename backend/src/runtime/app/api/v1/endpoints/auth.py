@@ -1,5 +1,5 @@
 from datetime import timedelta, datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.user import User
@@ -21,7 +21,7 @@ class RegisterInitiateRequest(BaseModel):
 
 
 @router.post("/register/initiate")
-def initiate_registration(user_in: RegisterInitiateRequest, db: Session = Depends(get_db)):
+def initiate_registration(user_in: RegisterInitiateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_in.email).first()
     if user:
         raise HTTPException(
@@ -43,7 +43,7 @@ def initiate_registration(user_in: RegisterInitiateRequest, db: Session = Depend
     <p>Your verification code is: <strong>{otp}</strong></p>
     <p>Please enter this code in the app to complete your registration.</p>
     """
-    send_email(user_in.email, "SBN Sentinel - Verification Code", html_body, is_html=True)
+    background_tasks.add_task(send_email, user_in.email, "SBN Sentinel - Verification Code", html_body, is_html=True)
 
     return {"message": "OTP sent successfully."}
 
