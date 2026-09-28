@@ -1,14 +1,12 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
     container_name: sbnsentinel_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: sbnsentinel
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -21,10 +19,12 @@ services:
     restart: always
     depends_on:
       - db
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql://postgres:password123@db:5432/sbnsentinel
-      - SECRET_KEY=your_production_secret_key_change_me
-      - CORS_ORIGINS=http://143.198.65.226
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "8000:8000"
 
@@ -36,7 +36,7 @@ services:
     depends_on:
       - backend
     environment:
-      - NEXT_PUBLIC_API_URL=http://143.198.65.226:8000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "80:3000"
 
