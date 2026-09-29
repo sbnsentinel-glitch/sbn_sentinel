@@ -22,11 +22,12 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_PHONE_NUMBER: str = ""
 
-    # SMTP
+    # SMTP / Brevo
     SMTP_SERVER: str = ""
     SMTP_PORT: str = ""
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
+    BREVO_API_KEY: str = ""
 
     # EHR
     EHR_CLIENT_ID: str = ""

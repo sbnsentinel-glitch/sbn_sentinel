@@ -7,9 +7,38 @@ logger = logging.getLogger(__name__)
 
 
 def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
+    import urllib.request
+    import json
+    
+    if getattr(settings, 'BREVO_API_KEY', None):
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "accept": "application/json",
+            "api-key": settings.BREVO_API_KEY,
+            "content-type": "application/json"
+        }
+        sender_email = settings.SMTP_USER if settings.SMTP_USER else "noreply@sbnsentinel.com"
+        data = {
+            "sender": {"email": sender_email, "name": "SBN Sentinel"},
+            "to": [{"email": to_email}],
+            "subject": subject,
+        }
+        if is_html:
+            data["htmlContent"] = body
+        else:
+            data["textContent"] = body
+            
+        req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req) as response:
+                return response.status in [200, 201, 202]
+        except Exception as e:
+            logger.error(f"Failed to send email via Brevo to {to_email}: {str(e)}")
+            return False
+
     if not settings.SMTP_SERVER or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
         logger.warning(
-            f"SMTP configuration is missing. Mocking email send to {to_email}: {subject}")
+            f"SMTP/Brevo configuration is missing. Mocking email send to {to_email}: {subject}")
         # Print out the body so we can see the OTP in the terminal
         print(f"\n--- MOCKED EMAIL TO {to_email} ---")
         print(f"Subject: {subject}")
