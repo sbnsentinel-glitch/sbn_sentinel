@@ -75,9 +75,9 @@ def register_user(user_in: RegisterVerifyRequest, db: Session = Depends(get_db))
 
     from app.models.user import UserRole
     # Map frontend role to backend UserRole
-    assigned_role = UserRole.UNASSIGNED.value
+    assigned_role = UserRole.SYSTEM_ADMINISTRATOR.value
     if user_in.role == 'clinic_admin':
-        assigned_role = UserRole.ORGANIZATION_ADMINISTRATOR.value
+        assigned_role = UserRole.SYSTEM_ADMINISTRATOR.value
 
     user = User(
         email=user_in.email,
