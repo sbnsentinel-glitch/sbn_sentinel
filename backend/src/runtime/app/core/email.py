@@ -14,7 +14,7 @@ def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
         url = "https://api.brevo.com/v3/smtp/email"
         headers = {
             "accept": "application/json",
-            "api-key": settings.BREVO_API_KEY,
+            "api-key": settings.BREVO_API_KEY.strip().strip("'").strip('"'),
             "content-type": "application/json"
         }
         sender_email = settings.SMTP_USER if settings.SMTP_USER else "noreply@sbnsentinel.com"
