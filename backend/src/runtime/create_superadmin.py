@@ -14,7 +14,10 @@ def seed_super_admin():
     
     existing = db.query(User).filter(User.email == email).first()
     if existing:
-        print(f"Super admin {email} already exists!")
+        existing.hashed_password = get_password_hash(password)
+        existing.role = UserRole.SYSTEM_ADMINISTRATOR.value
+        db.commit()
+        print(f"Super admin {email} was updated with the default password!")
         return
         
     admin = User(
