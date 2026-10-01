@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
     import urllib.request
     import json
-    
+
     if getattr(settings, 'BREVO_API_KEY', None):
         url = "https://api.brevo.com/v3/smtp/email"
         headers = {
@@ -27,7 +27,7 @@ def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
             data["htmlContent"] = body
         else:
             data["textContent"] = body
-            
+
         req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers, method="POST")
         try:
             with urllib.request.urlopen(req) as response:
