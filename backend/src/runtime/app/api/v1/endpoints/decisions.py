@@ -5,7 +5,7 @@ from typing import Optional, Any
 from sqlalchemy.orm import Session
 from app.services.human_decision_engine import human_decision_engine
 from app.services.governance_registry import governance_registry
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_scoped_user, verify_object_scope, get_db
 from app.models.signal import SignalModel
 from app.models.governance_storage import RuleEvaluationModel, RecommendationModel, HumanDecisionModel
 
@@ -59,6 +59,8 @@ async def get_recommendation_review(
     Returns authoritative Recommendation + current Human Decision based on exact Signal relationship.
     """
     signal = db.query(SignalModel).filter(SignalModel.id == signal_id).first()
+    if signal and signal.primary_context:
+        verify_object_scope(db, current_user, signal.primary_context)
 
     unavailable_resp = {
         "object_ref": {"object_type": "Signal", "object_id": signal_id},

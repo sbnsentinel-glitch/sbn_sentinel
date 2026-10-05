@@ -152,7 +152,11 @@ class HumanDecisionEngine(BaseService):
             journey_id=journey_id
         )
 
-        governance_registry.record_human_decision(decision_record)
+        try:
+            governance_registry.record_human_decision(decision_record)
+        except Exception as e:
+            logger.warning(f"[HumanDecisionEngine] Atomic constraint failed: {e}")
+            return {"status": "ERROR", "message": str(e)}
 
         return {
             "status": "SUCCESS",

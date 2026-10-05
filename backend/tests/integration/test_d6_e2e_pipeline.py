@@ -59,6 +59,8 @@ def setup_db():
 @pytest.fixture(scope="function")
 def mock_admin():
     class MockAdmin:
+        org_id = "SYSTEM_GLOBAL"
+        clinic_id = None
         id = "admin123"
         role = "System Administrator"
         is_active = True

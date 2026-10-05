@@ -24,4 +24,5 @@ class User(Base):
     role = Column(String, default=UserRole.ORGANIZATION_ADMINISTRATOR.value)
     org_id = Column(String, nullable=True)  # Scope context
     is_active = Column(Boolean, default=True)
+    token_invalid_before = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

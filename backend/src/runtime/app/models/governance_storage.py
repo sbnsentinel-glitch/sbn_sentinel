@@ -1,16 +1,18 @@
-from sqlalchemy import Column, String, Text, UniqueConstraint, Integer
+from sqlalchemy import Column, String, Text, UniqueConstraint, Integer, Boolean
 from app.db.database import Base
 
 
 class GovernanceStorageModel(Base):
     """Fallback storage for GovernanceRegistry to migrate away from pickle."""
     __tablename__ = "governance_storage"
+    __table_args__ = {'extend_existing': True}
     id = Column(String, primary_key=True)
     state_json = Column(Text, nullable=False)
 
 
 class RuleEvaluationModel(Base):
     __tablename__ = "governed_rule_evaluations"
+    __table_args__ = {'extend_existing': True}
     evaluation_id = Column(String, primary_key=True)
     decision_context_id = Column(String, nullable=False)
     policy_id = Column(String, nullable=False)
@@ -25,6 +27,7 @@ class RuleEvaluationModel(Base):
 
 class RecommendationModel(Base):
     __tablename__ = "governed_recommendations"
+    __table_args__ = {'extend_existing': True}
     recommendation_id = Column(String, primary_key=True)
     decision_context_id = Column(String, nullable=False)
     rule_evaluation_id = Column(String, nullable=False)
@@ -36,10 +39,12 @@ class RecommendationModel(Base):
     priority = Column(String)
     generated_at = Column(String)
     intended_target_reference = Column(String, nullable=True)
+    authority_requirement = Column(String, nullable=True)
 
 
 class HumanDecisionModel(Base):
     __tablename__ = "governed_decisions"
+    __table_args__ = {'extend_existing': True}
     decision_id = Column(String, primary_key=True)
     recommendation_id = Column(String, nullable=False, index=True)
     journey_id = Column(String, nullable=False, index=True)
@@ -47,10 +52,14 @@ class HumanDecisionModel(Base):
     decision_type = Column(String)
     status = Column(String)
     decision_timestamp = Column(String)
+    authority_basis = Column(String, nullable=True)
+    reason = Column(Text, nullable=True)
+    override_indicator = Column(Boolean, default=False)
 
 
 class OperationalActionModel(Base):
     __tablename__ = "governed_actions"
+    __table_args__ = {'extend_existing': True}
     action_id = Column(String, primary_key=True)
     authorization_reference = Column(String, nullable=False)  # foreign key to decision
     journey_id = Column(String, nullable=False, index=True)
@@ -65,11 +74,13 @@ class OperationalActionModel(Base):
 
     __table_args__ = (
         UniqueConstraint('authorization_reference', 'action_type', 'target_reference', 'intent_hash', name='uq_action_intent'),
+        {'extend_existing': True}
     )
 
 
 class ExecutionAttemptModel(Base):
     __tablename__ = "governed_execution_attempts"
+    __table_args__ = {'extend_existing': True}
     attempt_id = Column(String, primary_key=True)
     action_id = Column(String, nullable=False)
     journey_id = Column(String, nullable=False, index=True)
@@ -85,6 +96,7 @@ class ExecutionAttemptModel(Base):
 
 class OperationalOutcomeModel(Base):
     __tablename__ = "governed_outcomes"
+    __table_args__ = {'extend_existing': True}
     outcome_id = Column(String, primary_key=True)
     action_id = Column(String, nullable=False)
     journey_id = Column(String, nullable=False, index=True)
@@ -103,6 +115,7 @@ class OperationalOutcomeModel(Base):
 
 class GovernedPolicyVersionModel(Base):
     __tablename__ = "governed_policy_versions"
+    __table_args__ = {'extend_existing': True}
     policy_id = Column(String, primary_key=True)
     version = Column(String, primary_key=True)
     lifecycle_state = Column(String, nullable=False)
@@ -119,6 +132,7 @@ class GovernedPolicyVersionModel(Base):
 
 class GovernedRuleVersionModel(Base):
     __tablename__ = "governed_rule_versions"
+    __table_args__ = {'extend_existing': True}
     rule_id = Column(String, primary_key=True)
     version = Column(String, primary_key=True)
     governing_policy_id = Column(String, nullable=False)
@@ -138,6 +152,7 @@ class GovernedRuleVersionModel(Base):
 
 class GovernedRecommendationMappingModel(Base):
     __tablename__ = "governed_recommendation_mappings"
+    __table_args__ = {'extend_existing': True}
     mapping_id = Column(String, primary_key=True)
     version = Column(String, primary_key=True)
     applicable_rule_id = Column(String, nullable=False)

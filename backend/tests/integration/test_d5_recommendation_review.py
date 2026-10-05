@@ -32,6 +32,8 @@ def mock_admin():
     from app.api.deps import get_current_user
 
     class MockAdmin:
+        org_id = "SYSTEM_GLOBAL"
+        clinic_id = None
         id = "admin123"
         role = "System Administrator"
         is_active = True
@@ -320,6 +322,8 @@ def test_d5_authority_states_separation(setup_db, monkeypatch):
 
     # Case A: AUTHORITY_UNKNOWN when role is None or "UNKNOWN"
     class UnknownUser:
+        org_id = "UNASSIGNED"
+        clinic_id = None
         id = "unknown1"
         role = "UNKNOWN"
         is_active = True
@@ -331,6 +335,8 @@ def test_d5_authority_states_separation(setup_db, monkeypatch):
 
     # Case B: NOT_AUTHORIZED when role is known string but unconfigured
     class UnregisteredUser:
+        org_id = "UNASSIGNED"
+        clinic_id = None
         id = "viewer1"
         role = "AuditorGuest"
         is_active = True

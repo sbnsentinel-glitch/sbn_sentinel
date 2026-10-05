@@ -4,7 +4,7 @@ from typing import Dict, Any
 
 from app.db.database import get_db
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_scoped_user, verify_object_scope
 from app.models.user import User, UserRole
 from app.models.governance_storage import (
     RecommendationModel,
@@ -25,7 +25,7 @@ router = APIRouter()
 def get_historical_recommendation(
     recommendation_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_scoped_user)
 ) -> Dict[str, Any]:
     """
     Returns exact historical bindings for a specific recommendation.
@@ -34,6 +34,9 @@ def get_historical_recommendation(
     if not rec:
         raise HTTPException(status_code=404, detail="Recommendation not found")
 
+    # Scope check only if the recommendation has a known target reference
+    if rec.intended_target_reference:
+        verify_object_scope(db, current_user, rec.intended_target_reference)
     return _build_historical_lifecycle(rec, db)
 
 
@@ -41,7 +44,7 @@ def get_historical_recommendation(
 def get_historical_journey(
     journey_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_scoped_user)
 ) -> Dict[str, Any]:
     """
     Returns ordered collection of historical recommendations for a journey.
@@ -49,6 +52,8 @@ def get_historical_journey(
     recs = db.query(RecommendationModel).filter(RecommendationModel.journey_id == journey_id).order_by(RecommendationModel.generated_at.asc()).all()
     if not recs:
         raise HTTPException(status_code=404, detail="No historical records found for journey")
+        
+    verify_object_scope(db, current_user, recs[0].intended_target_reference)
 
     # If ambiguous (multiple recommendations), the spec says:
     # "Multiple historical recommendations + journey-only request => ambiguous, not arbitrary selection."
@@ -75,7 +80,15 @@ def get_reproduction(
 ) -> Dict[str, Any]:
     """
     Executes the deterministic reconstruction engine and returns the D8 ReproductionResult.
+    Accessible to any authenticated user; diagnostic payload restricted to System Administrators.
     """
+    rec = db.query(RecommendationModel).filter(RecommendationModel.recommendation_id == recommendation_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    # Scope check only if there is a known target reference
+    if rec.intended_target_reference:
+        verify_object_scope(db, current_user, rec.intended_target_reference)
+    
     # Call reconstruction engine
     result = reconstruction_engine.reproduce_decision(recommendation_id)
 

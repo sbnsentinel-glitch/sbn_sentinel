@@ -379,6 +379,8 @@ def test_d4_missing_sufficiency_fail_closed(setup_db):
     client = TestClient(app)
 
     class MockAdmin:
+        org_id = "SYSTEM_GLOBAL"
+        clinic_id = None
         id = "admin"
         role = "System Administrator"
 

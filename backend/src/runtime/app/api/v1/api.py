@@ -39,7 +39,8 @@ api_router.include_router(
 api_router.include_router(
     settings.router,
     prefix="/settings",
-    tags=["Settings"])
+    tags=["Settings"],
+    dependencies=protected)
 api_router.include_router(
     health.router,
     prefix="/health",

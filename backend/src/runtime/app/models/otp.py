@@ -12,3 +12,4 @@ class OTPModel(Base):
     purpose = Column(String)  # 'signup' or 'reset_password'
     created_at = Column(DateTime, default=datetime.utcnow)
     is_used = Column(Boolean, default=False)
+    attempts = Column(Integer, default=0)

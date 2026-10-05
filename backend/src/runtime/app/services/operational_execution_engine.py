@@ -96,7 +96,10 @@ class OperationalExecutionEngine(BaseService):
                 org_scope = initiator_scope.get("org_id")
                 clinic_scope = initiator_scope.get("clinic_id")
 
-                if org_scope and org_scope != "SYSTEM_GLOBAL":
+                if not org_scope or org_scope == "UNASSIGNED":
+                    return {"status": "ERROR", "message": "MISSING_SCOPE: Initiator lacks required organization scope."}
+
+                if org_scope != "SYSTEM_GLOBAL":
                     if target_org_id != org_scope:
                         return {
                             "status": "ERROR",
@@ -227,12 +230,15 @@ class OperationalExecutionEngine(BaseService):
         eligibility = self._pre_execution_validation(action, attempts_count=len(attempts))
         if not eligibility["eligible"]:
             governance_registry.update_operational_action(
-                action_id, ActionStatus.BLOCKED, ExecutionResult.NOT_ATTEMPTED)
+                action_id, ActionStatus.BLOCKED, ExecutionResult.NOT_ATTEMPTED, receipt=None)
             return {"status": "BLOCKED", "message": f"Execution blocked: {eligibility['reason']}"}
 
-        # Update state to EXECUTING
-        action = governance_registry.update_operational_action(
-            action_id, ActionStatus.EXECUTING, action.current_result)
+        # Atomic claim
+        if not governance_registry.claim_operational_action(action_id):
+            return {"status": "ERROR", "message": "Execution claiming failed. Action may already be executing."}
+        
+        # Reload action after claim
+        action = governance_registry.get_operational_action(action_id)
 
         # 2. Execution Attempt
         attempt_id = f"ATT-{uuid.uuid4().hex[:6].upper()}"
@@ -276,12 +282,16 @@ class OperationalExecutionEngine(BaseService):
         elif mock_result["result"] == ExecutionResult.NOT_ATTEMPTED and mock_result.get("error") == "NOT_IMPLEMENTED":
             new_status = ActionStatus.BLOCKED
         else:  # UNKNOWN
-            # SESR-009: UNKNOWN means the connection timed out, but the system might have processed it.
-            # We MUST leave it in EXECUTING state for reconciliation, not FAILED, to
-            # prevent unsafe retries.
             new_status = ActionStatus.EXECUTING
 
-        governance_registry.update_operational_action(action_id, new_status, mock_result["result"])
+        # F-09 Fix: Do not overwrite terminal states if somehow re-evaluated
+        current_action = governance_registry.get_operational_action(action_id)
+        if current_action.status not in (ActionStatus.COMPLETED, ActionStatus.CANCELLED):
+            receipt = {
+                "connector": actual_connector,
+                "intent_hash": action.intent_hash
+            }
+            governance_registry.update_operational_action(action_id, new_status, mock_result["result"], receipt=receipt)
 
         return {
             "status": new_status.value,

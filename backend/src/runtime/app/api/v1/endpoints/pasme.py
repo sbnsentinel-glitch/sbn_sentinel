@@ -11,6 +11,7 @@ from app.api.deps import RoleChecker  # noqa
 from app.models.user import User, UserRole
 from app.models.rule import RuleModel
 from app.services.data_audit_engine import data_audit_engine
+from app.schemas.audit import AuditLogCreate
 
 router = APIRouter()
 
@@ -20,41 +21,77 @@ MAINTENANCE_MODE = False
 # WebSocket Connection Manager for PASME Real-Time Chat
 
 
+from jose import jwt, JWTError
+from app.core.config import settings
+
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, room_id: str):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        if room_id not in self.active_connections:
+            self.active_connections[room_id] = []
+        self.active_connections[room_id].append(websocket)
 
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+    def disconnect(self, websocket: WebSocket, room_id: str):
+        if room_id in self.active_connections and websocket in self.active_connections[room_id]:
+            self.active_connections[room_id].remove(websocket)
 
-    async def broadcast(self, message: dict):
-        for connection in self.active_connections:
-            try:
-                await connection.send_json(message)
-            except Exception:
-                pass
-
+    async def broadcast(self, room_id: str, message: dict):
+        if room_id in self.active_connections:
+            for connection in self.active_connections[room_id]:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    pass
 
 manager = ConnectionManager()
 
 
-@router.websocket("/chat/ws")
-async def websocket_chat(websocket: WebSocket):
+@router.websocket("/chat/ws/{room_id}")
+async def websocket_chat(websocket: WebSocket, room_id: str, token: str):
     """
     PASME Real-Time WebSocket for cross-browser Team Messaging.
+    Secured as per F-02 requirements.
     """
-    await manager.connect(websocket)
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        role = payload.get("role")
+        if not user_id:
+            await websocket.close(code=1008)
+            return
+    except JWTError:
+        await websocket.close(code=1008)
+        return
+
+    await manager.connect(websocket, room_id)
+    last_msg_time = 0
     try:
         while True:
             data = await websocket.receive_json()
-            await manager.broadcast(data)
+            
+            # Size limit check (approximate)
+            if len(str(data)) > 2048:
+                await websocket.send_json({"error": "Message too large"})
+                continue
+                
+            # Rate limit check (1 message per second)
+            now = time.time()
+            if now - last_msg_time < 1.0:
+                await websocket.send_json({"error": "Rate limit exceeded"})
+                continue
+            last_msg_time = now
+
+            # Bind sender identity to the token, not client input
+            data["sender_id"] = user_id
+            data["role"] = role
+            data["room_id"] = room_id
+
+            await manager.broadcast(room_id, data)
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        manager.disconnect(websocket, room_id)
 
 
 @router.get("/health")
@@ -124,12 +161,12 @@ def toggle_rule(rule_id: str, db: Session = Depends(get_db), current_user: User 
     rule.is_active = not rule.is_active
 
     # MS-012/MS-010 Audit Requirement: Administrative actions are permanently traceable
-    data_audit_engine._log_internal(
-        db,
-        user_system=current_user.email,
+    audit_data = AuditLogCreate(
+        user_email=current_user.email,
         action=f"{'Enabled' if rule.is_active else 'Disabled'} Rule",
-        module=f"Rule: {rule.rule_id}"
+        resource=f"Rule: {rule.rule_id}"
     )
+    data_audit_engine.log_audit_event(audit_data)
 
     db.commit()
     return {"rule_id": rule.rule_id, "is_active": rule.is_active}
@@ -145,12 +182,12 @@ def toggle_maintenance_mode(db: Session = Depends(get_db), current_user: User = 
     MAINTENANCE_MODE = not MAINTENANCE_MODE
 
     # Audit log
-    data_audit_engine._log_internal(
-        db,
-        user_system=current_user.email,
+    audit_data = AuditLogCreate(
+        user_email=current_user.email,
         action=f"{'Enabled' if MAINTENANCE_MODE else 'Disabled'} Maintenance Mode",
-        module="Platform System"
+        resource="Platform System"
     )
+    data_audit_engine.log_audit_event(audit_data)
 
     return {"maintenance_mode": MAINTENANCE_MODE}
 

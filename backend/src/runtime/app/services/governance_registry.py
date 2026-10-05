@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from dateutil.parser import parse as dateutil_parse
 from enum import Enum
 from typing import Optional, List, Dict, Any
 from uuid import UUID  # noqa
@@ -561,7 +562,8 @@ class GovernanceRegistry:
                 status=record.status.value,
                 priority=record.priority,
                 generated_at=record.generated_at.isoformat(),
-                intended_target_reference=record.intended_target_reference
+                intended_target_reference=record.intended_target_reference,
+                authority_requirement=record.authority_requirement.value
             ))
             db.commit()
             self._recommendations.append(record)
@@ -590,7 +592,7 @@ class GovernanceRegistry:
                     rule_evaluation_id=db_record.rule_evaluation_id,
                     recommendation_content=db_record.content,
                     status=RecommendationStatus(db_record.status),
-                    authority_requirement=AuthorityRequirement.INFORMATIONAL,  # Migrated later
+                    authority_requirement=AuthorityRequirement(db_record.authority_requirement) if getattr(db_record, "authority_requirement", None) else AuthorityRequirement.INFORMATIONAL,
                     priority=db_record.priority,
                     generated_at=parse(db_record.generated_at),
                     journey_id=db_record.journey_id,
@@ -613,16 +615,29 @@ class GovernanceRegistry:
     def record_human_decision(self, decision: HumanDecisionRecord):
         db = SessionLocal()
         try:
-            db.add(HumanDecisionModel(
-                decision_id=decision.decision_id,
-                recommendation_id=decision.recommendation_id,
-                journey_id=decision.journey_id,  # Issue #3: Removed "UNKNOWN" fallback
-                actor_id=decision.actor_id,
-                decision_type=decision.decision_type.value,
-                status=decision.status.value,
-                decision_timestamp=decision.decision_timestamp.isoformat()
-            ))
-            db.commit()
+            existing = db.query(HumanDecisionModel).filter(
+                HumanDecisionModel.recommendation_id == decision.recommendation_id,
+                HumanDecisionModel.status == "RECORDED"
+            ).with_for_update().first()
+            
+            if existing:
+                if existing.actor_id != decision.actor_id or existing.decision_type != decision.decision_type.value:
+                    raise Exception("A current decision already exists for this recommendation.")
+                # Idempotent - do nothing
+            else:
+                db.add(HumanDecisionModel(
+                    decision_id=decision.decision_id,
+                    recommendation_id=decision.recommendation_id,
+                    journey_id=decision.journey_id,
+                    actor_id=decision.actor_id,
+                    decision_type=decision.decision_type.value,
+                    status=decision.status.value,
+                    decision_timestamp=decision.decision_timestamp.isoformat(),
+                    authority_basis=decision.authority_basis,
+                    reason=decision.reason,
+                    override_indicator=decision.override_indicator
+                ))
+                db.commit()
             self._human_decisions.append(decision)
         except Exception as e:
             db.rollback()
@@ -646,7 +661,9 @@ class GovernanceRegistry:
                     recommendation_id=db_record.recommendation_id,
                     actor_id=db_record.actor_id,
                     decision_type=DecisionType(db_record.decision_type),
-                    authority_basis="Unknown",  # Will be migrated fully later
+                    authority_basis=db_record.authority_basis or "Unknown",
+                    reason=db_record.reason,
+                    override_indicator=db_record.override_indicator,
                     status=DecisionStatus(db_record.status),
                     journey_id=db_record.journey_id
                 )
@@ -672,6 +689,7 @@ class GovernanceRegistry:
                 current_result=action.current_result.value,
                 parameters_json=json.dumps(action.parameters),
                 created_at=action.created_at.isoformat(),
+                execute_by=action.execute_by.isoformat() if action.execute_by else None,
                 intent_hash=action.intent_hash
             ))
             db.commit()
@@ -702,6 +720,8 @@ class GovernanceRegistry:
                     parameters=json.loads(db_record.parameters_json) if getattr(db_record, "parameters_json", None) else {},
                     status=ActionStatus(db_record.status),
                     current_result=ExecutionResult(db_record.current_result) if getattr(db_record, "current_result", None) else ExecutionResult.NOT_ATTEMPTED,
+                    created_at=dateutil_parse(db_record.created_at) if getattr(db_record, "created_at", None) else None,
+                    execute_by=dateutil_parse(db_record.execute_by) if getattr(db_record, "execute_by", None) else None,
                     journey_id=db_record.journey_id,
                     intent_hash=getattr(db_record, "intent_hash", None)
                 )
@@ -716,7 +736,8 @@ class GovernanceRegistry:
             self,
             action_id: str,
             new_status: ActionStatus,
-            new_result: ExecutionResult):
+            new_result: ExecutionResult,
+            receipt: Optional[Dict[str, Any]] = None):
 
         # Update DB Model
         from app.db.database import SessionLocal
@@ -725,6 +746,14 @@ class GovernanceRegistry:
         try:
             db_record = db.query(OperationalActionModel).filter(OperationalActionModel.action_id == action_id).with_for_update().first()
             if db_record:
+                if new_status in (ActionStatus.COMPLETED, ActionStatus.FAILED):
+                    if not receipt:
+                        raise Exception("Missing execution receipt for terminal state transition.")
+                    if not receipt.get("connector"):
+                        raise Exception("Missing connector identity in receipt.")
+                    if db_record.intent_hash and receipt.get("intent_hash") != db_record.intent_hash:
+                        raise Exception("Execution receipt intent hash mismatch.")
+                
                 db_record.status = new_status.value
                 db_record.current_result = new_result.value
                 db.commit()
@@ -740,6 +769,26 @@ class GovernanceRegistry:
             if db_record:
                 return self.get_operational_action(action_id)
             return None
+        finally:
+            db.close()
+
+    def claim_operational_action(self, action_id: str) -> bool:
+        from app.db.database import SessionLocal
+        from app.models.governance_storage import OperationalActionModel
+        db = SessionLocal()
+        try:
+            db_record = db.query(OperationalActionModel).filter(OperationalActionModel.action_id == action_id).with_for_update().first()
+            if db_record and db_record.status in ("CREATED", "READY"):
+                db_record.status = "EXECUTING"
+                db.commit()
+                # Update memory
+                for i, a in enumerate(self._operational_actions):
+                    if a.action_id == action_id:
+                        import dataclasses
+                        updated = dataclasses.replace(a, status=ActionStatus.EXECUTING)
+                        self._operational_actions[i] = updated
+                return True
+            return False
         finally:
             db.close()
 
