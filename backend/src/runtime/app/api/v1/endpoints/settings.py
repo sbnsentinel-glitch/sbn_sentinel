@@ -126,7 +126,7 @@ def invite_team_member(payload: Dict[str, Any], db: Session = Depends(get_db), c
     import secrets
     from datetime import datetime, timedelta
     from app.models.otp import OTPModel
-    
+
     recent_otp = db.query(OTPModel).filter(OTPModel.email == email, OTPModel.created_at >= datetime.utcnow() - timedelta(minutes=1)).first()
     if recent_otp:
         raise HTTPException(status_code=429, detail="Please wait 1 minute before inviting again.")
@@ -176,7 +176,7 @@ def revoke_team_member(user_id: int, db: Session = Depends(get_db), current_user
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == UserRole.SYSTEM_ADMINISTRATOR.value:
         raise HTTPException(status_code=403, detail="Cannot revoke super admin")
-    
+
     hierarchy = {
         UserRole.SYSTEM_ADMINISTRATOR.value: 100,
         UserRole.ORGANIZATION_ADMINISTRATOR.value: 80,

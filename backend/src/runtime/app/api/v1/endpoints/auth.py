@@ -76,13 +76,13 @@ def register_user(user_in: RegisterVerifyRequest, db: Session = Depends(get_db))
 
     if not otp_record or datetime.utcnow() - otp_record.created_at > timedelta(minutes=settings.OTP_EXPIRE_MINUTES):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
-        
+
     otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
     if otp_record.attempts > 3:
         otp_record.is_used = True
         db.commit()
         raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
-    
+
     otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
     if otp_record.attempts > 3:
         otp_record.is_used = True
@@ -164,7 +164,7 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     from app.models.otp import OTPModel
     from app.core.email import send_email
 
-    recent_otp = db.query(OTPModel).filter(OTPModel.email == user_in.email, OTPModel.created_at >= datetime.utcnow() - timedelta(minutes=1)).first()
+    recent_otp = db.query(OTPModel).filter(OTPModel.email == payload.email, OTPModel.created_at >= datetime.utcnow() - timedelta(minutes=1)).first()
     if recent_otp:
         raise HTTPException(status_code=429, detail="Please wait 1 minute before requesting a new OTP.")
 
@@ -202,13 +202,13 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 
     if not otp_record or datetime.utcnow() - otp_record.created_at > timedelta(minutes=settings.OTP_EXPIRE_MINUTES):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
-        
+
     otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
     if otp_record.attempts > 3:
         otp_record.is_used = True
         db.commit()
         raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
-    
+
     otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
     if otp_record.attempts > 3:
         otp_record.is_used = True
@@ -237,13 +237,13 @@ def accept_invite(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
 
     if not otp_record or datetime.utcnow() - otp_record.created_at > timedelta(minutes=settings.OTP_EXPIRE_MINUTES):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
-        
+
     otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
     if otp_record.attempts > 3:
         otp_record.is_used = True
         db.commit()
         raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
-    
+
     otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
     if otp_record.attempts > 3:
         otp_record.is_used = True

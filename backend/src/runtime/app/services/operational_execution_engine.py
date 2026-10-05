@@ -236,7 +236,7 @@ class OperationalExecutionEngine(BaseService):
         # Atomic claim
         if not governance_registry.claim_operational_action(action_id):
             return {"status": "ERROR", "message": "Execution claiming failed. Action may already be executing."}
-        
+
         # Reload action after claim
         action = governance_registry.get_operational_action(action_id)
 

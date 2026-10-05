@@ -1,13 +1,13 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from jose import jwt, JWTError
 from typing import List
 
 from app.core.config import settings
 from app.db.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.services.data_audit_engine import data_audit_engine
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session
 
 # This expects the token in the Authorization header: `Bearer <token>`
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
@@ -43,7 +43,7 @@ def get_current_user(
 
     iat = payload.get("iat")
     if user.token_invalid_before and iat:
-        from datetime import datetime, timezone
+        from datetime import datetime
         iat_dt = datetime.utcfromtimestamp(iat)
         invalid_before = user.token_invalid_before.replace(tzinfo=None) if user.token_invalid_before.tzinfo else user.token_invalid_before
         if iat_dt < invalid_before:
@@ -78,7 +78,7 @@ class RoleChecker:
             )
         return current_user
 
-from app.models.user import UserRole
+
 def get_scoped_user(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role == UserRole.SYSTEM_ADMINISTRATOR.value:
         return current_user
@@ -86,16 +86,17 @@ def get_scoped_user(current_user: User = Depends(get_current_user)) -> User:
         raise HTTPException(status_code=403, detail="Missing required organization scope")
     return current_user
 
+
 def verify_object_scope(db: Session, current_user: User, target_reference: str):
     if current_user.role == UserRole.SYSTEM_ADMINISTRATOR.value:
         return
     if not target_reference:
         raise HTTPException(status_code=403, detail="Cannot verify scope: missing target reference")
-    
+
     from app.models.encounter import EncounterModel
     from app.models.organization import OrganizationClinicModel
     target_org_id = None
-    
+
     encounter = db.query(EncounterModel).filter(EncounterModel.id == target_reference).first()
     if encounter:
         if encounter.clinic_id:
@@ -106,7 +107,7 @@ def verify_object_scope(db: Session, current_user: User, target_reference: str):
         org = db.query(OrganizationClinicModel).filter(OrganizationClinicModel.id == target_reference).first()
         if org:
             target_org_id = org.organization_id
-            
+
     if not target_org_id:
         raise HTTPException(status_code=403, detail="Cannot resolve authoritative target ownership")
     if target_org_id != current_user.org_id:

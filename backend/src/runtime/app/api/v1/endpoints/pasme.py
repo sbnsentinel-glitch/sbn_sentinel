@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
-from typing import List
-import time
-import psutil
 import os
+import time
 
-from app.db.database import get_db
-from app.api.deps import RoleChecker
+import psutil
 from app.api.deps import RoleChecker  # noqa
-from app.models.user import User, UserRole
+from app.core.config import settings
+from app.db.database import get_db
 from app.models.rule import RuleModel
-from app.services.data_audit_engine import data_audit_engine
+from app.models.user import User, UserRole
 from app.schemas.audit import AuditLogCreate
+from app.services.data_audit_engine import data_audit_engine
+from fastapi import (APIRouter, Depends, HTTPException, WebSocket,
+                     WebSocketDisconnect)
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
@@ -20,9 +21,6 @@ MAINTENANCE_MODE = False
 
 # WebSocket Connection Manager for PASME Real-Time Chat
 
-
-from jose import jwt, JWTError
-from app.core.config import settings
 
 class ConnectionManager:
     def __init__(self):
@@ -45,6 +43,7 @@ class ConnectionManager:
                     await connection.send_json(message)
                 except Exception:
                     pass
+
 
 manager = ConnectionManager()
 
@@ -71,12 +70,12 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str):
     try:
         while True:
             data = await websocket.receive_json()
-            
+
             # Size limit check (approximate)
             if len(str(data)) > 2048:
                 await websocket.send_json({"error": "Message too large"})
                 continue
-                
+
             # Rate limit check (1 message per second)
             now = time.time()
             if now - last_msg_time < 1.0:

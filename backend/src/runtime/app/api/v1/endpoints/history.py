@@ -52,7 +52,7 @@ def get_historical_journey(
     recs = db.query(RecommendationModel).filter(RecommendationModel.journey_id == journey_id).order_by(RecommendationModel.generated_at.asc()).all()
     if not recs:
         raise HTTPException(status_code=404, detail="No historical records found for journey")
-        
+
     verify_object_scope(db, current_user, recs[0].intended_target_reference)
 
     # If ambiguous (multiple recommendations), the spec says:
@@ -88,7 +88,7 @@ def get_reproduction(
     # Scope check only if there is a known target reference
     if rec.intended_target_reference:
         verify_object_scope(db, current_user, rec.intended_target_reference)
-    
+
     # Call reconstruction engine
     result = reconstruction_engine.reproduce_decision(recommendation_id)
 

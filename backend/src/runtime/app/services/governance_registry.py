@@ -619,7 +619,7 @@ class GovernanceRegistry:
                 HumanDecisionModel.recommendation_id == decision.recommendation_id,
                 HumanDecisionModel.status == "RECORDED"
             ).with_for_update().first()
-            
+
             if existing:
                 if existing.actor_id != decision.actor_id or existing.decision_type != decision.decision_type.value:
                     raise Exception("A current decision already exists for this recommendation.")
@@ -753,7 +753,7 @@ class GovernanceRegistry:
                         raise Exception("Missing connector identity in receipt.")
                     if db_record.intent_hash and receipt.get("intent_hash") != db_record.intent_hash:
                         raise Exception("Execution receipt intent hash mismatch.")
-                
+
                 db_record.status = new_status.value
                 db_record.current_result = new_result.value
                 db.commit()
