@@ -15,22 +15,23 @@ router = APIRouter()
 
 _ip_rate_limits = {}
 
+
 def check_ip_abuse(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     now = datetime.utcnow()
     global _ip_rate_limits
-    
+
     _ip_rate_limits = {ip: times for ip, times in _ip_rate_limits.items() if times[-1] > now - timedelta(minutes=5)}
-    
+
     if client_ip not in _ip_rate_limits:
         _ip_rate_limits[client_ip] = []
-        
+
     times = _ip_rate_limits[client_ip]
     times = [t for t in times if t > now - timedelta(minutes=1)]
-    
+
     if len(times) >= 10:
         raise HTTPException(status_code=429, detail="Too many requests from this IP. Please try again later.")
-        
+
     times.append(now)
     _ip_rate_limits[client_ip] = times
     return client_ip

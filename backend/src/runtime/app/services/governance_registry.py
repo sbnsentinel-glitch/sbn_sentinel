@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Optional, List, Dict, Any
 from uuid import UUID  # noqa
 from app.db.database import SessionLocal
+import sqlalchemy.exc
 from app.models.governance_storage import (
     RecommendationModel, HumanDecisionModel,
     OperationalActionModel, ExecutionAttemptModel, OperationalOutcomeModel,
@@ -13,6 +14,16 @@ from app.models.governance_storage import (
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ======================================================
+# Exceptions
+# ======================================================
+
+
+class HistoricalBindingUnavailable(Exception):
+    """Raised when a governed historical relationship cannot be proven or found."""
+    pass
+
 
 # ======================================================
 # SESR-003: Core Governance Objects
@@ -209,7 +220,7 @@ class HumanDecisionRecord:
     recommendation_id: str
     actor_id: str
     decision_type: DecisionType
-    authority_basis: str
+    authority_basis: Optional[str]
     status: DecisionStatus
     reason: Optional[str] = None
     override_indicator: bool = False
@@ -585,6 +596,10 @@ class GovernanceRegistry:
         try:
             db_record = db.query(RecommendationModel).filter(RecommendationModel.recommendation_id == recommendation_id).first()
             if db_record:
+                raw_auth = getattr(db_record, "authority_requirement", None)
+                if not raw_auth or raw_auth == "INFORMATIONAL":
+                    raise HistoricalBindingUnavailable("Missing recommendation authority")
+
                 return RecommendationRecord(
                     recommendation_id=db_record.recommendation_id,
                     mapping_id=db_record.mapping_id,
@@ -593,7 +608,7 @@ class GovernanceRegistry:
                     rule_evaluation_id=db_record.rule_evaluation_id,
                     recommendation_content=db_record.content,
                     status=RecommendationStatus(db_record.status),
-                    authority_requirement=AuthorityRequirement(db_record.authority_requirement) if getattr(db_record, "authority_requirement", None) else AuthorityRequirement.UNAVAILABLE,
+                    authority_requirement=AuthorityRequirement(raw_auth),
                     priority=db_record.priority,
                     generated_at=parse(db_record.generated_at),
                     journey_id=db_record.journey_id,
@@ -640,6 +655,10 @@ class GovernanceRegistry:
                 ))
                 db.commit()
             self._human_decisions.append(decision)
+        except sqlalchemy.exc.IntegrityError:
+            db.rollback()
+            # Idempotent - do nothing
+            pass
         except Exception as e:
             db.rollback()
             logger.error(f"DB Error saving decision: {e}")
@@ -662,11 +681,12 @@ class GovernanceRegistry:
                     recommendation_id=db_record.recommendation_id,
                     actor_id=db_record.actor_id,
                     decision_type=DecisionType(db_record.decision_type),
-                    authority_basis=db_record.authority_basis or "Unknown",
+                    authority_basis=db_record.authority_basis,
                     reason=db_record.reason,
                     override_indicator=db_record.override_indicator,
                     status=DecisionStatus(db_record.status),
-                    journey_id=db_record.journey_id
+                    journey_id=db_record.journey_id,
+                    decision_timestamp=datetime.fromisoformat(db_record.decision_timestamp.replace('Z', '+00:00')) if db_record.decision_timestamp else datetime.utcnow()
                 )
             # Fallback to in-memory for testing if needed
             for d in self._human_decisions:
@@ -811,6 +831,10 @@ class GovernanceRegistry:
             ))
             db.commit()
             self._execution_attempts.append(attempt)
+        except sqlalchemy.exc.IntegrityError:
+            db.rollback()
+            # Idempotent conflict
+            raise Exception("Idempotent conflict: concurrent execution attempt numbering clash.")
         except Exception as e:
             db.rollback()
             logger.error(f"DB Error saving attempt: {e}")

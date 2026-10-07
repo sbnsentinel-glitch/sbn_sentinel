@@ -18,7 +18,6 @@ Base = declarative_base()
 
 
 def ensure_schema_compatibility():
-    from sqlalchemy import inspect, text
     try:
         from app.models import (  # noqa
             event, signal, user, otp, governance_storage, intelligence,
@@ -32,20 +31,6 @@ def ensure_schema_compatibility():
     # However, SQLite (used for tests) requires create_all to initialize memory DBs.
     if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
         Base.metadata.create_all(bind=engine)
-    inspector = inspect(engine)
-    existing_tables = inspector.get_table_names()
-    for table_name, table in Base.metadata.tables.items():
-        if table_name in existing_tables:
-            existing_cols = {col['name'] for col in inspector.get_columns(table_name)}
-            for col in table.columns:
-                if col.name not in existing_cols:
-                    col_type = col.type.compile(engine.dialect)
-                    try:
-                        with engine.connect() as conn:
-                            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type}"))
-                            conn.commit()
-                    except Exception:
-                        pass
 
 
 ensure_schema_compatibility()

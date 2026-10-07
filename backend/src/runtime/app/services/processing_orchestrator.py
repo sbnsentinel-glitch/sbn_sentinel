@@ -655,9 +655,9 @@ class ProcessingOrchestrator:
                 secondary_context=context_model.secondary_context if context_model else "",
                 context_confidence="",
                 context_reason=context_model.reason if context_model else "",
-                revenue_risk_category=revenue_model.opportunity_category if revenue_model else "None",
-                estimated_financial_exposure=revenue_model.estimated_exposure if revenue_model else "$0.00",
-                revenue_confidence=revenue_model.financial_priority if revenue_model else "High",
+                revenue_risk_category=revenue_model.opportunity_category if revenue_model else "UNAVAILABLE",
+                estimated_financial_exposure=revenue_model.estimated_exposure if revenue_model else "UNAVAILABLE",
+                revenue_confidence=revenue_model.financial_priority if revenue_model else "UNAVAILABLE",
                 operational_dependency="",
             )
 

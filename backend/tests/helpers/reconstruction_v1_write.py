@@ -35,7 +35,7 @@ def main():
     mapping_v1 = RecommendationMapping(
         mapping_id=mapping_id, version="V1", applicable_rule_id=rule_id,
         eligible_result="CONDITION_MET", recommendation_template="Test Action V1",
-        authority_requirement=AuthorityRequirement.INFORMATIONAL, priority="High",
+        authority_requirement=AuthorityRequirement.APPROVAL_REQUIRED, priority="High",
         lifecycle_state=LifecycleState.ACTIVE, business_impact_template="V1 Impact",
         expected_outcome_template="V1 Expected")
 

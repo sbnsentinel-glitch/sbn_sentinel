@@ -44,7 +44,7 @@ def main():
         rule_evaluation_id=eval_id,
         recommendation_content="Subproc Rec",
         status=RecommendationStatus.ACTIVE,
-        authority_requirement=AuthorityRequirement.INFORMATIONAL,
+        authority_requirement=AuthorityRequirement.APPROVAL_REQUIRED,
         priority="High",
         journey_id=jny_id
     ))

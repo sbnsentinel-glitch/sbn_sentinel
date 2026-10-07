@@ -260,18 +260,21 @@ class OperationalExecutionEngine(BaseService):
             return {"status": "ERROR", "message": f"Action {action_id} not found."}
 
         # 1. Pre-execution Validation
-        terminal_states = [ActionStatus.COMPLETED, ActionStatus.CANCELLED, ActionStatus.FAILED, ActionStatus.EXPIRED]
-        if action.status in terminal_states:
-            return {"status": "ERROR", "message": f"Action is already in a terminal state: {action.status.value}"}
+        terminal_or_uncertain = [ActionStatus.COMPLETED, ActionStatus.CANCELLED, ActionStatus.FAILED, ActionStatus.EXPIRED]
 
         attempts = governance_registry.get_execution_attempts(action_id)
         attempt_number = len(attempts) + 1
 
         eligibility = self._pre_execution_validation(action, attempts_count=len(attempts))
         if not eligibility["eligible"]:
+            if action.status in terminal_or_uncertain:
+                logger.warning(f"Rejected execute request for terminal action {action_id}: {eligibility['reason']}")
+                return {"status": "REJECTED", "current_status": action.status.value, "message": f"Execution rejected: {eligibility['reason']}"}
+
+            new_status = ActionStatus.EXPIRED if eligibility["reason"] == "ACTION_EXPIRED" else ActionStatus.BLOCKED
             governance_registry.update_operational_action(
-                action_id, ActionStatus.BLOCKED, ExecutionResult.NOT_ATTEMPTED, receipt=None)
-            return {"status": "BLOCKED", "message": f"Execution blocked: {eligibility['reason']}"}
+                action_id, new_status, ExecutionResult.NOT_ATTEMPTED, receipt=None)
+            return {"status": "REJECTED", "current_status": new_status.value, "message": f"Execution rejected: {eligibility['reason']}"}
 
         # Atomic claim
         if not governance_registry.claim_operational_action(action_id):

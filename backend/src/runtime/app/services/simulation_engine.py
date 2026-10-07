@@ -78,9 +78,9 @@ class SimulationEngine:
                         secondary_context=context.secondary_context if context else "",
                         context_confidence=context.confidence if context else "",
                         context_reason=context.reason if context else "",
-                        revenue_risk_category=revenue.opportunity_category if revenue else "None",
-                        estimated_financial_exposure=revenue.estimated_exposure if revenue else "$0.00",
-                        revenue_confidence=revenue.financial_priority if revenue else "High",
+                        revenue_risk_category=revenue.opportunity_category if revenue else "UNAVAILABLE",
+                        estimated_financial_exposure=revenue.estimated_exposure if revenue else "UNAVAILABLE",
+                        revenue_confidence=revenue.financial_priority if revenue else "UNAVAILABLE",
                         operational_dependency=""
                     )
                     await self.broadcast(event)

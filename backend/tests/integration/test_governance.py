@@ -228,7 +228,7 @@ def test_a021_historical_reconstruction():
         applicable_rule_id=rule_id,
         eligible_result="CONDITION_MET",
         recommendation_template="Test Action V1",
-        authority_requirement=AuthorityRequirement.INFORMATIONAL,
+        authority_requirement=AuthorityRequirement.APPROVAL_REQUIRED,
         priority="High",
         lifecycle_state=LifecycleState.ACTIVE,
         business_impact_template="V1 Impact",
@@ -418,7 +418,7 @@ def test_a025_restart_safe_persistence_and_continuity():
         rule_evaluation_id=eval_id,
         recommendation_content="Persisted Rec Content",
         status=RecommendationStatus.ACTIVE,
-        authority_requirement=AuthorityRequirement.INFORMATIONAL,
+        authority_requirement=AuthorityRequirement.APPROVAL_REQUIRED,
         priority="High",
         journey_id=jny_id
     ))
@@ -732,7 +732,7 @@ def test_a021b_reconstruction_missing_dependency():
             applicable_rule_id=rule_a_id,
             eligible_result="CONDITION_MET",
             recommendation_template="Case A Action",
-            authority_requirement=AuthorityRequirement.INFORMATIONAL,
+            authority_requirement=AuthorityRequirement.APPROVAL_REQUIRED,
             priority="High",
             lifecycle_state=LifecycleState.ACTIVE
         )
@@ -766,7 +766,7 @@ def test_a021b_reconstruction_missing_dependency():
             applicable_rule_id=rule_b_id,
             eligible_result="CONDITION_MET",
             recommendation_template="Case B Action",
-            authority_requirement=AuthorityRequirement.INFORMATIONAL,
+            authority_requirement=AuthorityRequirement.APPROVAL_REQUIRED,
             priority="High",
             lifecycle_state=LifecycleState.ACTIVE
         )

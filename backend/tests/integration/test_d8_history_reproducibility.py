@@ -79,7 +79,7 @@ def test_d8_historical_chain_and_reproduction(client: TestClient, db_session: Se
     # Register V1
     policy_v1 = PolicyVersion(policy_id=pol_id, version="V1", content="V1 Policy", lifecycle_state=LifecycleState.ACTIVE)
     rule_v1 = RuleVersion(rule_id=rule_id, version="V1", logic_description="", lifecycle_state=LifecycleState.ACTIVE, inputs=[], allowed_outputs=[], governing_policy_id=pol_id, governing_policy_version="V1")
-    mapping_v1 = RecommendationMapping(mapping_id=map_id, version="V1", applicable_rule_id=rule_id, eligible_result="CONDITION_MET", recommendation_template="Action V1", authority_requirement=AuthorityRequirement.INFORMATIONAL, priority="High", lifecycle_state=LifecycleState.ACTIVE)
+    mapping_v1 = RecommendationMapping(mapping_id=map_id, version="V1", applicable_rule_id=rule_id, eligible_result="CONDITION_MET", recommendation_template="Action V1", authority_requirement=AuthorityRequirement.APPROVAL_REQUIRED, priority="High", lifecycle_state=LifecycleState.ACTIVE)
 
     governance_registry.register_policy(policy_v1)
     governance_registry.register_rule(rule_v1)

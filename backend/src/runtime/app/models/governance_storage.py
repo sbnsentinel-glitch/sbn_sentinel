@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, UniqueConstraint, Integer, Boolean, Index
+from sqlalchemy import Column, String, Text, UniqueConstraint, Integer, Boolean, Index, text
 from app.db.database import Base
 
 
@@ -57,7 +57,7 @@ class HumanDecisionModel(Base):
     override_indicator = Column(Boolean, default=False)
 
     __table_args__ = (
-        Index('uq_active_decision', 'recommendation_id', unique=True, sqlite_where=Column('status') == 'RECORDED'),
+        Index('uq_active_decision', 'recommendation_id', unique=True, sqlite_where=text("status = 'RECORDED'"), postgresql_where=text("status = 'RECORDED'")),
         {'extend_existing': True}
     )
 
@@ -97,6 +97,11 @@ class ExecutionAttemptModel(Base):
     request_reference = Column(String, nullable=True)
     response_reference = Column(String, nullable=True)
     error_message = Column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('action_id', 'attempt_number', name='uq_attempt_no'),
+        {'extend_existing': True}
+    )
 
 
 class OperationalOutcomeModel(Base):

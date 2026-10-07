@@ -1,0 +1,824 @@
+<USER_REQUEST>
+client send this bro I reviewed the Round 2 remediation return and the new GitHub repository carefully. There is useful remediation work in the new code, and please keep those improvements in place. However, the Round 2 return cannot be accepted yet because the report is still not aligned with the authoritative F-01 to F-34 findings and the required acceptance evidence.
+
+Please correct the following 8 points:
+
+1. Do not rename or remap any F-ID.
+
+
+
+Use the exact F-01 to F-34 names and meanings from the “SBN Sentinel V1 Remediation Round 2 Developer Guidance” document.
+
+For example, the current return incorrectly maps items such as F-03, F-05, F-06, F-10, F-11, F-12 and F-13 to different issues. Please use the original finding names exactly so that every fix can be tracked correctly.
+
+2. Do not combine F-14 to F-34.
+
+
+
+The return currently groups F-14 to F-34 together as “resolved via upstream fixes.” This is not acceptable because these are 21 separate findings with separate owners, files and acceptance conditions.
+
+Return F-14, F-15, F-16 … through F-34 individually, with status and evidence for every finding.
+
+3. Map every F-ID to its correct AT-ID.
+
+
+
+AT-01 to AT-34 must correspond to the exact acceptance tests defined in the Round 2 guidance.
+
+For example, AT-01 is not a D8 history test. AT-01 relates to administration authentication, role restrictions and invitation authority.
+
+Please provide:
+
+F-01 → AT-01
+F-02 → AT-02
+F-03 → AT-03
+…
+F-34 → AT-34
+
+For each AT-ID, include the exact test name, test file and result.
+
+4. The submitted SHA does not have a successful backend CI.
+
+
+
+Submitted remediation SHA:
+
+fc204a00cca95763b86b5ac7a56bee0f154b53c3
+
+GitHub Actions Run:
+
+37573371398
+
+This run FAILED during backend Flake8.
+
+Because lint failed, the backend Unit Tests, Governance Tests, D4/D5, D6, D7, D8 and API Module tests were skipped.
+
+Therefore, the local “77/77 passed” result cannot replace the exact-SHA GitHub CI requirement.
+
+Current main has also moved to:
+
+ec2636ddbc342b5c745ebb52c9c727ed294300ad
+
+but its SES-011 CI also fails because:
+
+assistant.py references undefined name “active_patient”.
+
+Please first obtain one clean final SHA with a completely green SES-011 GitHub Actions run.
+
+5. Many F-10 to F-34 owning files were not changed.
+
+
+
+Please do not mark these findings as “resolved via upstream fixes” unless the actual owning contract has been corrected and tested.
+
+Examples of still-relevant owners include:
+
+rules_engine.py
+processing_orchestrator.py
+intelligence_engine.py
+decision_context_engine.py
+revenue_intelligence_engine.py
+reconstruction_engine.py
+ingress_service.py
+bundle_pager.py
+capability_snapshot.py
+cursor_store.py
+jwt_client_assertion.py
+transport.py
+database.py
+Dialog.tsx
+HistoricalTraceSection.tsx
+SignalsDetailView.tsx
+d9Conformance.test.tsx
+
+Review the Round 2 document finding by finding and correct the actual owner instead of closing findings through unrelated upstream changes.
+
+6. F-28 still requires a proper versioned migration mechanism.
+
+
+
+The following are not acceptable substitutes for production migrations:
+
+SQLAlchemy create_all()
+Runtime ALTER TABLE
+extend_existing=True
+“No migration required”
+
+Please introduce a controlled versioned migration mechanism, preferably Alembic or the approved equivalent, and provide the final schema revision.
+
+The runtime application should not silently modify the production database schema during startup.
+
+7. F-29 and F-34 remain open until deployment evidence exists.
+
+
+
+The report itself states deployment is still pending.
+
+Therefore these findings cannot yet be marked Fixed.
+
+After deployment, provide:
+
+Final backend SHA/image ID
+Final frontend SHA/image ID
+Schema/migration revision
+Environment class
+Database engine
+Approved API origins
+Readiness endpoint/result
+Backup restore evidence
+Rollback evidence
+Safe production smoke-test evidence
+
+Practice Fusion sandbox/authorization evidence must remain separately identified from internal engineering acceptance.
+
+8. Preserve the useful fixes already made, but complete the original Round 2 checklist.
+
+
+
+Do not remove or weaken the improvements already implemented, including authentication controls, role validation, WebSocket security groundwork, OTP/security improvements, persistence fields, action continuity controls and deployment/Docker changes.
+
+Also do not skip safety tests, bypass readiness checks, weaken assertions or change the F-ID definitions just to make CI green.
+
+The next return should contain:
+
+Final repository branch
+Final exact SHA
+One green exact-SHA SES-011 CI run
+F-01 to F-34 listed individually using the exact Round 2 names
+Status for each: FIXED / OPEN / BLOCKED / NOT APPLICABLE WITH REASON
+Exact file/function changed for each finding
+Matching AT-01 to AT-34 test/evidence for every item
+Migration revision
+Deployment evidence where required
+
+Please continue from the work already completed and correct only the remaining gaps. There is no need to redesign Sentinel or create new architecture. batao kya karna hai 
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-07T11:48:55+05:30.
+
+The user's current state is as follows:
+Active Document: c:\Users\User\Desktop\houseplanfiles1\frontend\src\components\RegionalPlansSection.tsx (LANGUAGE_TSX)
+Cursor is on line: 485
+Other open documents:
+- c:\Users\User\Desktop\houseplanfiles1\frontend\src\components\RegionalPlansSection.tsx (LANGUAGE_TSX)
+- c:\Users\User\Desktop\houseplanfiles1\frontend\src\app\city\[cityName]\page.tsx (LANGUAGE_TSX)
+Running terminal commands:
+- npm run dev (in c:\Users\User\Desktop\houseplanfiles1\backend, running for 13h32m13s)
+- pnpm run dev (in c:\Users\User\Desktop\houseplanfiles1\frontend, running for 1h46m33s)
+- pnpm run dev (in c:\Users\User\Desktop\zikrabyte\tsb_web\tsb_web, running for 1h16m20s)
+</ADDITIONAL_METADATA>
+<USER_REQUEST>
+I completed the targeted Round 2 closure audit against the latest repository state.
+
+Repository: sbnsentinel-glitch/sbn_sentinel  
+Branch: main  
+Audited SHA: 2f828182380cd9c98f00c205241bc498f2e59f0b  
+SES-011 CI Run: 37612000173 — PASS
+
+First, the good news: the latest CI claim is verified. Backend lint, unit, governance, D4/D5, D6, D7, D8 and API tests are all passing, and the frontend tests/build are also green.
+
+However, Round 2 cannot yet be accepted as fully complete.
+
+Current audit result:
+
+6 PASS  
+12 PARTIAL  
+16 OPEN
+
+Please preserve all fixes that have already passed. Do not redesign Sentinel, create new architecture, or revert these completed corrections.
+
+The following findings are now considered PASS and should not be changed unless required by an owning dependency:
+
+F-07 — Action timing persistence  
+F-10 — Unknown/versioned Rule execution  
+F-11 — Negative Rule result fidelity  
+F-12 — Decision Context validation hard gate  
+F-14 — Mandatory persistence failure handling  
+F-18 — Main D6 Action Lifecycle reachability
+
+Please focus only on the remaining findings.
+
+1. F-01 — PARTIAL
+
+Administration protection is improved, but administrative reads are still too broad. Front Desk and Read-Only Auditor can access settings/team/integration reads, GET settings can still create default data, and System Admin invitation can accept a client-supplied org_id.
+
+Required: make administrative reads properly role-scoped, remove side effects from GET routes, and keep organization/clinic ownership server-controlled.
+
+2. F-02 — PARTIAL
+
+WebSocket security is much better: JWT, user activity, revocation, room scope, message size and rate controls are present.
+
+Remaining issue: missing Origin is still accepted because validation only rejects an Origin when one is supplied.
+
+Required: missing or untrusted Origin must fail according to AT-02.
+
+3. F-03 — OPEN
+
+Signal object scoping improved, but User currently has no durable clinic_id even though scope/readiness logic expects it.
+
+Also, decision POST still needs authoritative Recommendation/object scope validation before recording a decision.
+
+Required: use real persisted org/clinic ownership and fail closed on missing ownership.
+
+4. F-04 — PARTIAL
+
+OTP counting and password-reset token invalidation are improved.
+
+Still required: demonstrate cross-endpoint/IP abuse controls and complete AT-04 negative tests.
+
+5. F-05 — PARTIAL
+
+Reason, authority basis and override indicator now persist.
+
+Remaining issue: original decision_timestamp is still not rehydrated, and missing authority still becomes “Unknown”.
+
+Required: restore the exact stored timestamp and preserve unavailable legacy authority without inventing a value.
+
+6. F-06 — PARTIAL
+
+Recommendation authority is now persisted.
+
+Remaining issue: missing historical authority still silently defaults to INFORMATIONAL.
+
+Required: missing/ambiguous authority must be explicitly unavailable/fail safe, not INFORMATIONAL.
+
+7. F-08 — OPEN
+
+Row locking was added, but database-level uniqueness still does not guarantee one active Human Decision per Recommendation under concurrency.
+
+Required: define and enforce the business identity with a DB constraint/transaction-safe mechanism and test concurrent inserts.
+
+8. F-09 — OPEN
+
+The original defect remains.
+
+When pre-execution validation fails, execute_action still writes:
+
+BLOCKED / NOT_ATTEMPTED
+
+before the later terminal-state protection.
+
+Required: rejecting a repeated execution request must never overwrite COMPLETED/SUCCESS, CANCELLED, UNKNOWN or other terminal/historical truth.
+
+9. F-13 — PARTIAL
+
+Revenue Rule IDs and DTO fields are now aligned.
+
+Remaining issue: missing revenue can still appear downstream as $0.00 with High confidence.
+
+Required: unavailable revenue must stay unavailable, not become zero/high certainty.
+
+10. F-15 — PARTIAL
+
+Historical reconstruction improved significantly.
+
+Missing/invalid inputs now return NOT_REPRODUCIBLE.
+
+Remaining requirement: prove executable-version identity is immutable and historically bound, not dependent only on mutable in-process handler registration.
+
+11. F-16 — OPEN
+
+History-chain validation improved, but the ContextEvidenceModel relationship is still incorrect.
+
+The context evidence row ID is still being used to look up EvidenceModel.evidence_id, even though ContextEvidenceModel does not contain an authoritative evidence_id field.
+
+Required: create/use the correct durable evidence relationship and validate the complete chain.
+
+12. F-17 — PARTIAL
+
+The wrong Signal ID → Journey ID issue is fixed.
+
+Remaining issue: HistoricalTraceSection does not clear reproductionResult when journey changes and has no stale-response/cancellation protection.
+
+Required: clear previous reproduction state immediately and prevent an older async response from updating the new journey.
+
+13. F-19 — OPEN
+
+The ConnectorRuntimeStateManager is a good improvement.
+
+However, the real sync_connector() path does not update connector_runtime_state.
+
+Therefore readiness can remain UNCONFIGURED even after successful synchronization.
+
+Required: make the actual connector lifecycle update the single authoritative runtime state.
+
+14. F-20 — OPEN
+
+Integration admin toggle still directly changes:
+
+connected  
+lastSync = “Just now”
+
+without a real connector operation.
+
+This remains shadow state.
+
+Also remove GET-side rule seeding.
+
+Required: admin UI must project real governed connector/rule state rather than create parallel truth.
+
+15. F-21 — OPEN
+
+Ingress still uses query-before-insert and EvidenceModel still has no unique constraint on:
+
+source_connector + fact_key
+
+Required: add a database uniqueness constraint and proper conflict-safe/upsert behavior. Test same-batch, concurrent and restart replay.
+
+16. F-22 — OPEN
+
+FHIR canonical ingestion still does not fully preserve the required Patient/Encounter/Coverage relationships or prove the durable handoff into the governed evidence/context pipeline.
+
+Required: preserve normalized subject/beneficiary relationships and prove one qualifying fixture reaches the existing pipeline exactly once.
+
+17. F-23 — OPEN
+
+FHIR next-page and Bulk status/output URLs can still receive Authorization headers without a destination trust policy.
+
+Required: validate scheme/host/path/private-network boundary before requests and only forward credentials to approved audiences.
+
+18. F-24 — OPEN
+
+CapabilitySnapshot.supports() still accepts:
+
+read OR search-type
+
+while sync performs collection search.
+
+Required: gate by the exact operation being executed and validate expected Bundle/resource shape.
+
+19. F-25 — OPEN
+
+Checkpoint timestamps are still compared as strings.
+
+Cursor storage also lacks unique connector/resource identity and concurrency fencing.
+
+Required: parse timestamps into UTC, use overlap/tie-break handling, add DB uniqueness and monotonic/fenced updates.
+
+20. F-26 — OPEN
+
+Authentication still returns raw token JSON.
+
+Retry-After still assumes integer seconds.
+
+Required: introduce a validated token lease with expiry/scopes/token type, renew safely, normalize failures and support both integer and HTTP-date Retry-After with bounded retry budget.
+
+21. F-27 — OPEN
+
+Bulk retry can still replay previously yielded rows, and ordinary PF sync still uses fetch_all().
+
+Required: implement bounded durable batches/restart semantics and add the second synthetic adapter contract proof without building another production connector.
+
+22. F-28 — OPEN
+
+Alembic files were added, which is the correct direction.
+
+However, database.py still performs:
+
+Base.metadata.create_all()  
+runtime ALTER TABLE ADD COLUMN  
+silent exception swallowing  
+ensure_schema_compatibility() during import
+
+These must be removed from production schema management.
+
+Required: Alembic/versioned migration becomes the only production schema authority.
+
+23. F-29 — PARTIAL
+
+Production PostgreSQL enforcement, DB healthcheck and Compose dependency ordering are improved.
+
+Remaining: provide actual production-image boot, persistence, container replacement and backup/restore evidence.
+
+24. F-30 — PARTIAL
+
+Central API-origin handling and non-OK response rejection are improved.
+
+Remaining: consistently validate content type/response schema for history APIs, not only reproduction.
+
+25. F-31 — PARTIAL
+
+Dialog focus entry, Tab containment, focus return and aria-labelledby are now implemented.
+
+Remaining: complete critical localization adoption and replace placeholder/manual assertions with actual behavioral tests.
+
+26. F-32 — OPEN
+
+D9 closure is not complete.
+
+There are still 10 skipped tests.
+
+T07 currently uses:
+
+expect(true).toBe(true)
+
+T13 only proves the mocked media query returns true, not that animation actually changes.
+
+T28 also references an older SHA/CI.
+
+Required: complete the authoritative T01-T30 crosswalk and replace weak assertions with real behavior tests where applicable. Manual tests can remain manual but must have actual evidence.
+
+27. F-33 — PARTIAL
+
+Dependency audit artifact is now generated and uploaded.
+
+However CI currently uses:
+
+npm audit --json ... || true
+
+so material vulnerabilities cannot block release.
+
+Latest successful CI reports:
+
+14 vulnerabilities  
+2 moderate  
+11 high  
+1 critical
+
+Required: classify each material advisory and either remediate or explicitly approve the risk. Unaccepted high/critical findings must follow the defined release policy.
+
+28. F-34 — OPEN
+
+release_manifest.yaml is not valid final evidence yet.
+
+It still references source SHA:
+
+3f654331...
+
+while current audited SHA is:
+
+2f828182...
+
+The image digests and rollback values also appear incomplete/placeholder values.
+
+Required: regenerate the release manifest from the actual final release and provide real immutable image digests, schema revision, deployment SHA, API origin, rollback point, backup restore and smoke-test evidence.
+
+Important:
+
+Do not alter the six PASS findings unless necessary.
+
+Do not weaken tests or mark manual/placeholder tests as PASS.
+
+Do not reintroduce MVP bypasses.
+
+Do not create a second readiness owner, rules engine, connector runtime, history system or action engine.
+
+Do not enable real Practice Fusion patient-data synchronization until F-19 through F-28 are closed.
+
+Please return the next package with:
+
+Final exact SHA  
+Green exact-SHA SES-011 run  
+F-01 to F-34 individually listed using the authoritative names  
+PASS / PARTIAL / OPEN status for every item  
+Exact file/function reference  
+AT-01 to AT-34 evidence mapping  
+Final Alembic revision  
+Dependency-audit disposition  
+Updated release manifest with real values  
+Deployment/restore/rollback evidence where applicable
+
+Current targeted audit result at SHA 2f828182380cd9c98f00c205241bc498f2e59f0b:
+
+6 PASS / 12 PARTIAL / 16 OPEN
+
+Please continue from the current implementation and correct only these remaining gaps. shared this check once kuch karna mt bs check karo aur verify karo tum 
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-07T17:19:16+05:30.
+
+The user's current state is as follows:
+Active Document: c:\Users\User\Downloads\google-services.json (LANGUAGE_JSON)
+Cursor is on line: 8
+Other open documents:
+- c:\Users\User\Downloads\google-services.json (LANGUAGE_JSON)
+- c:\Users\User\Desktop\zikrabyte\clubwise\clubwize-client\src\app\work-zone\suggestions\page.tsx (LANGUAGE_TSX)
+</ADDITIONAL_METADATA>
+<USER_REQUEST>
+client ko duu sare change ho gye kya sub sahi ho gya ishme se har ek cheeze ho gya hai n bhau I completed the targeted Round 2 closure audit against the latest repository state.
+
+Repository: sbnsentinel-glitch/sbn_sentinel  
+Branch: main  
+Audited SHA: 2f828182380cd9c98f00c205241bc498f2e59f0b  
+SES-011 CI Run: 37612000173 — PASS
+
+First, the good news: the latest CI claim is verified. Backend lint, unit, governance, D4/D5, D6, D7, D8 and API tests are all passing, and the frontend tests/build are also green.
+
+However, Round 2 cannot yet be accepted as fully complete.
+
+Current audit result:
+
+6 PASS  
+12 PARTIAL  
+16 OPEN
+
+Please preserve all fixes that have already passed. Do not redesign Sentinel, create new architecture, or revert these completed corrections.
+
+The following findings are now considered PASS and should not be changed unless required by an owning dependency:
+
+F-07 — Action timing persistence  
+F-10 — Unknown/versioned Rule execution  
+F-11 — Negative Rule result fidelity  
+F-12 — Decision Context validation hard gate  
+F-14 — Mandatory persistence failure handling  
+F-18 — Main D6 Action Lifecycle reachability
+
+Please focus only on the remaining findings.
+
+1. F-01 — PARTIAL
+
+Administration protection is improved, but administrative reads are still too broad. Front Desk and Read-Only Auditor can access settings/team/integration reads, GET settings can still create default data, and System Admin invitation can accept a client-supplied org_id.
+
+Required: make administrative reads properly role-scoped, remove side effects from GET routes, and keep organization/clinic ownership server-controlled.
+
+2. F-02 — PARTIAL
+
+WebSocket security is much better: JWT, user activity, revocation, room scope, message size and rate controls are present.
+
+Remaining issue: missing Origin is still accepted because validation only rejects an Origin when one is supplied.
+
+Required: missing or untrusted Origin must fail according to AT-02.
+
+3. F-03 — OPEN
+
+Signal object scoping improved, but User currently has no durable clinic_id even though scope/readiness logic expects it.
+
+Also, decision POST still needs authoritative Recommendation/object scope validation before recording a decision.
+
+Required: use real persisted org/clinic ownership and fail closed on missing ownership.
+
+4. F-04 — PARTIAL
+
+OTP counting and password-reset token invalidation are improved.
+
+Still required: demonstrate cross-endpoint/IP abuse controls and complete AT-04 negative tests.
+
+5. F-05 — PARTIAL
+
+Reason, authority basis and override indicator now persist.
+
+Remaining issue: original decision_timestamp is still not rehydrated, and missing authority still becomes “Unknown”.
+
+Required: restore the exact stored timestamp and preserve unavailable legacy authority without inventing a value.
+
+6. F-06 — PARTIAL
+
+Recommendation authority is now persisted.
+
+Remaining issue: missing historical authority still silently defaults to INFORMATIONAL.
+
+Required: missing/ambiguous authority must be explicitly unavailable/fail safe, not INFORMATIONAL.
+
+7. F-08 — OPEN
+
+Row locking was added, but database-level uniqueness still does not guarantee one active Human Decision per Recommendation under concurrency.
+
+Required: define and enforce the business identity with a DB constraint/transaction-safe mechanism and test concurrent inserts.
+
+8. F-09 — OPEN
+
+The original defect remains.
+
+When pre-execution validation fails, execute_action still writes:
+
+BLOCKED / NOT_ATTEMPTED
+
+before the later terminal-state protection.
+
+Required: rejecting a repeated execution request must never overwrite COMPLETED/SUCCESS, CANCELLED, UNKNOWN or other terminal/historical truth.
+
+9. F-13 — PARTIAL
+
+Revenue Rule IDs and DTO fields are now aligned.
+
+Remaining issue: missing revenue can still appear downstream as $0.00 with High confidence.
+
+Required: unavailable revenue must stay unavailable, not become zero/high certainty.
+
+10. F-15 — PARTIAL
+
+Historical reconstruction improved significantly.
+
+Missing/invalid inputs now return NOT_REPRODUCIBLE.
+
+Remaining requirement: prove executable-version identity is immutable and historically bound, not dependent only on mutable in-process handler registration.
+
+11. F-16 — OPEN
+
+History-chain validation improved, but the ContextEvidenceModel relationship is still incorrect.
+
+The context evidence row ID is still being used to look up EvidenceModel.evidence_id, even though ContextEvidenceModel does not contain an authoritative evidence_id field.
+
+Required: create/use the correct durable evidence relationship and validate the complete chain.
+
+12. F-17 — PARTIAL
+
+The wrong Signal ID → Journey ID issue is fixed.
+
+Remaining issue: HistoricalTraceSection does not clear reproductionResult when journey changes and has no stale-response/cancellation protection.
+
+Required: clear previous reproduction state immediately and prevent an older async response from updating the new journey.
+
+13. F-19 — OPEN
+
+The ConnectorRuntimeStateManager is a good improvement.
+
+However, the real sync_connector() path does not update connector_runtime_state.
+
+Therefore readiness can remain UNCONFIGURED even after successful synchronization.
+
+Required: make the actual connector lifecycle update the single authoritative runtime state.
+
+14. F-20 — OPEN
+
+Integration admin toggle still directly changes:
+
+connected  
+lastSync = “Just now”
+
+without a real connector operation.
+
+This remains shadow state.
+
+Also remove GET-side rule seeding.
+
+Required: admin UI must project real governed connector/rule state rather than create parallel truth.
+
+15. F-21 — OPEN
+
+Ingress still uses query-before-insert and EvidenceModel still has no unique constraint on:
+
+source_connector + fact_key
+
+Required: add a database uniqueness constraint and proper conflict-safe/upsert behavior. Test same-batch, concurrent and restart replay.
+
+16. F-22 — OPEN
+
+FHIR canonical ingestion still does not fully preserve the required Patient/Encounter/Coverage relationships or prove the durable handoff into the governed evidence/context pipeline.
+
+Required: preserve normalized subject/beneficiary relationships and prove one qualifying fixture reaches the existing pipeline exactly once.
+
+17. F-23 — OPEN
+
+FHIR next-page and Bulk status/output URLs can still receive Authorization headers without a destination trust policy.
+
+Required: validate scheme/host/path/private-network boundary before requests and only forward credentials to approved audiences.
+
+18. F-24 — OPEN
+
+CapabilitySnapshot.supports() still accepts:
+
+read OR search-type
+
+while sync performs collection search.
+
+Required: gate by the exact operation being executed and validate expected Bundle/resource shape.
+
+19. F-25 — OPEN
+
+Checkpoint timestamps are still compared as strings.
+
+Cursor storage also lacks unique connector/resource identity and concurrency fencing.
+
+Required: parse timestamps into UTC, use overlap/tie-break handling, add DB uniqueness and monotonic/fenced updates.
+
+20. F-26 — OPEN
+
+Authentication still returns raw token JSON.
+
+Retry-After still assumes integer seconds.
+
+Required: introduce a validated token lease with expiry/scopes/token type, renew safely, normalize failures and support both integer and HTTP-date Retry-After with bounded retry budget.
+
+21. F-27 — OPEN
+
+Bulk retry can still replay previously yielded rows, and ordinary PF sync still uses fetch_all().
+
+Required: implement bounded durable batches/restart semantics and add the second synthetic adapter contract proof without building another production connector.
+
+22. F-28 — OPEN
+
+Alembic files were added, which is the correct direction.
+
+However, database.py still performs:
+
+Base.metadata.create_all()  
+runtime ALTER TABLE ADD COLUMN  
+silent exception swallowing  
+ensure_schema_compatibility() during import
+
+These must be removed from production schema management.
+
+Required: Alembic/versioned migration becomes the only production schema authority.
+
+23. F-29 — PARTIAL
+
+Production PostgreSQL enforcement, DB healthcheck and Compose dependency ordering are improved.
+
+Remaining: provide actual production-image boot, persistence, container replacement and backup/restore evidence.
+
+24. F-30 — PARTIAL
+
+Central API-origin handling and non-OK response rejection are improved.
+
+Remaining: consistently validate content type/response schema for history APIs, not only reproduction.
+
+25. F-31 — PARTIAL
+
+Dialog focus entry, Tab containment, focus return and aria-labelledby are now implemented.
+
+Remaining: complete critical localization adoption and replace placeholder/manual assertions with actual behavioral tests.
+
+26. F-32 — OPEN
+
+D9 closure is not complete.
+
+There are still 10 skipped tests.
+
+T07 currently uses:
+
+expect(true).toBe(true)
+
+T13 only proves the mocked media query returns true, not that animation actually changes.
+
+T28 also references an older SHA/CI.
+
+Required: complete the authoritative T01-T30 crosswalk and replace weak assertions with real behavior tests where applicable. Manual tests can remain manual but must have actual evidence.
+
+27. F-33 — PARTIAL
+
+Dependency audit artifact is now generated and uploaded.
+
+However CI currently uses:
+
+npm audit --json ... || true
+
+so material vulnerabilities cannot block release.
+
+Latest successful CI reports:
+
+14 vulnerabilities  
+2 moderate  
+11 high  
+1 critical
+
+Required: classify each material advisory and either remediate or explicitly approve the risk. Unaccepted high/critical findings must follow the defined release policy.
+
+28. F-34 — OPEN
+
+release_manifest.yaml is not valid final evidence yet.
+
+It still references source SHA:
+
+3f654331...
+
+while current audited SHA is:
+
+2f828182...
+
+The image digests and rollback values also appear incomplete/placeholder values.
+
+Required: regenerate the release manifest from the actual final release and provide real immutable image digests, schema revision, deployment SHA, API origin, rollback point, backup restore and smoke-test evidence.
+
+Important:
+
+Do not alter the six PASS findings unless necessary.
+
+Do not weaken tests or mark manual/placeholder tests as PASS.
+
+Do not reintroduce MVP bypasses.
+
+Do not create a second readiness owner, rules engine, connector runtime, history system or action engine.
+
+Do not enable real Practice Fusion patient-data synchronization until F-19 through F-28 are closed.
+
+Please return the next package with:
+
+Final exact SHA  
+Green exact-SHA SES-011 run  
+F-01 to F-34 individually listed using the authoritative names  
+PASS / PARTIAL / OPEN status for every item  
+Exact file/function reference  
+AT-01 to AT-34 evidence mapping  
+Final Alembic revision  
+Dependency-audit disposition  
+Updated release manifest with real values  
+Deployment/restore/rollback evidence where applicable
+
+Current targeted audit result at SHA 2f828182380cd9c98f00c205241bc498f2e59f0b:
+
+6 PASS / 12 PARTIAL / 16 OPEN
+
+Please continue from the current implementation and correct only these remaining gaps.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-07T19:20:23+05:30.
+
+The user's current state is as follows:
+Active Document: c:\Users\User\Desktop\zikrabyte\tsb_web\tsb_web\src\components\layout\Footer.tsx (LANGUAGE_TSX)
+Cursor is on line: 71
+Other open documents:
+- c:\Users\User\Desktop\zikrabyte\tsb_web\tsb_web\src\components\layout\Footer.tsx (LANGUAGE_TSX)
+Running terminal commands:
+- npm run dev (in c:\Users\User\Desktop\zikrabyte\tsb_web\tsb_web, running for 1h30m16s)
+</ADDITIONAL_METADATA>

@@ -66,6 +66,32 @@ class PolicyEngine(BaseService):
         self.logger = logging.getLogger(self.__class__.__name__)
         from app.services.governance_registry import governance_registry
         self.registry = governance_registry
+        self._handlers = {}
+
+    def _execute_policy_logic(self, policy, decision_context, evidence_package, event_type) -> tuple[bool, str]:
+        if not self._handlers:
+            def eval_pol_001_v1(ctx, ep, et):
+                if not ep or (not ep.get("evidence_items") and not ep.get("evidence_references")):
+                    return False, "BLOCKED: No operational evidence available."
+                return True, f"PASS: {policy.policy_id}"
+
+            def eval_pol_002_v1(ctx, ep, et):
+                allowed_event_types = ["EHR", "Phone", "Email", "Manual"]
+                if et not in allowed_event_types:
+                    return False, f"BLOCKED: Event type '{et}' not authorized."
+                return True, f"PASS: {policy.policy_id}"
+
+            def eval_pol_003_v1(ctx, ep, et):
+                return True, f"PASS: {policy.policy_id}"
+
+            self._handlers[("POL-001", "V1")] = eval_pol_001_v1
+            self._handlers[("POL-002", "V1")] = eval_pol_002_v1
+            self._handlers[("POL-003", "V1")] = eval_pol_003_v1
+
+        handler = self._handlers.get((policy.policy_id, policy.version))
+        if not handler:
+            return False, f"NOT_EVALUABLE: Unknown or unsupported policy {policy.policy_id} v{policy.version}"
+        return handler(decision_context, evidence_package, event_type)
 
     @property
     def service_name(self) -> str:
@@ -87,12 +113,6 @@ class PolicyEngine(BaseService):
     def evaluate(self, decision_context: Dict[str, Any]) -> PolicyResult:
         """
         Evaluate governance conditions against the Decision Context.
-
-        ARR-001 B-005 Rule 1: Policies evaluate governance conditions.
-        ARR-001 B-005 Rule 4: Policy is evaluated against Decision Context, not raw events.
-        ARR-001 B-005 Rule 5: Risk scores do not control decisions.
-
-        Returns a PolicyResult indicating whether recommendations are permitted.
         """
         evaluated = []
         failed = []
@@ -110,21 +130,12 @@ class PolicyEngine(BaseService):
         for policy in applicable_policies:
             evaluated.append(f"{policy.policy_id} / {policy.version}")
 
-            if policy.policy_id == "POL-001":
-                if not evidence_package or (not evidence_package.get(
-                        "evidence_items") and not evidence_package.get("evidence_references")):
-                    failed.append(f"{policy.policy_id} / {policy.version}")
-                    notes.append("BLOCKED: No operational evidence available.")
-                else:
-                    notes.append(f"PASS: {policy.policy_id}")
-
-            elif policy.policy_id == "POL-002":
-                allowed_event_types = ["EHR", "Phone", "Email", "Manual"]
-                if event_type not in allowed_event_types:
-                    failed.append(f"{policy.policy_id} / {policy.version}")
-                    notes.append(f"BLOCKED: Event type '{event_type}' not authorized.")
-                else:
-                    notes.append(f"PASS: {policy.policy_id}")
+            is_pass, reason = self._execute_policy_logic(policy, decision_context, evidence_package, event_type)
+            if not is_pass:
+                failed.append(f"{policy.policy_id} / {policy.version}")
+                notes.append(reason)
+            else:
+                notes.append(reason)
 
         is_permitted = len(failed) == 0 and len(applicable_policies) > 0
 

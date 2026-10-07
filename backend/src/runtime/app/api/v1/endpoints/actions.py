@@ -175,7 +175,7 @@ async def execute_operational_action(
 
     if result["status"] == "ERROR":
         raise HTTPException(status_code=400, detail=result.get("message", "Execution failed"))
-    if result["status"] == "BLOCKED":
-        raise HTTPException(status_code=409, detail=result.get("message", "Execution blocked"))
+    if result["status"] in ["BLOCKED", "REJECTED"]:
+        raise HTTPException(status_code=409, detail=result.get("message", "Execution blocked or rejected"))
 
     return result

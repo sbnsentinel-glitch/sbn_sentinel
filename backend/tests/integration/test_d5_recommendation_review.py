@@ -95,6 +95,7 @@ def test_d5_recommendation_review_endpoint_exact_match(setup_db, mock_admin):
         mapping_version="1.0",
         content="Test Recommendation Content",
         status="ACTIVE",
+        authority_requirement="APPROVAL_REQUIRED",
         priority="High",
         generated_at=datetime.datetime.utcnow().isoformat()
     )
@@ -159,7 +160,7 @@ def test_d5_recommendation_ambiguity(setup_db, mock_admin):
             rule_evaluation_id=eval_id,
             journey_id=correlation_id,
             mapping_id="map-1", mapping_version="1.0", content="Content",
-            status="ACTIVE", priority="High", generated_at=datetime.datetime.utcnow().isoformat()
+            status="ACTIVE", authority_requirement="APPROVAL_REQUIRED", priority="High", generated_at=datetime.datetime.utcnow().isoformat()
         ))
     db.commit()
 
@@ -192,7 +193,7 @@ def test_d5_recommendation_lifecycle_expired(setup_db, mock_admin):
         rule_evaluation_id=eval_id,
         journey_id=correlation_id,
         mapping_id="map-1", mapping_version="1.0", content="Content",
-        status="EXPIRED", priority="High", generated_at=datetime.datetime.utcnow().isoformat()
+        status="EXPIRED", authority_requirement="APPROVAL_REQUIRED", priority="High", generated_at=datetime.datetime.utcnow().isoformat()
     ))
     db.commit()
 
@@ -238,6 +239,7 @@ def test_d5_restart_safe_duplicate_decision_prevention(setup_db, mock_admin):
         mapping_version="1.0",
         content="Restart test content",
         status="ACTIVE",
+        authority_requirement="APPROVAL_REQUIRED",
         priority="High",
         generated_at=datetime.datetime.utcnow().isoformat()
     ))
@@ -317,6 +319,7 @@ def test_d5_authority_states_separation(setup_db, monkeypatch):
         mapping_version="1.0",
         content="Authority test content",
         status="ACTIVE",
+        authority_requirement="APPROVAL_REQUIRED",
         priority="High",
         generated_at=datetime.datetime.utcnow().isoformat()
     ))

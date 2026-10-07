@@ -58,7 +58,7 @@ class IntelligenceEngine(BaseService):
             }
 
         rule_id = finding.get("rule_id", "UNKNOWN")
-        result = finding.get("result", "CONDITION_MET")  # from F-11 exact result
+        result = finding.get("result", "NOT_EVALUABLE")
 
         eval_time = datetime.utcnow()
         mapping = governance_registry.get_applicable_recommendation_mapping(
