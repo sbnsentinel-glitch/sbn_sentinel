@@ -9,8 +9,31 @@ from app.core.security import verify_password, get_password_hash, create_access_
 from app.core.config import settings
 from app.services.data_audit_engine import data_audit_engine
 from app.api.deps import get_current_user
+from fastapi import Request
 
 router = APIRouter()
+
+_ip_rate_limits = {}
+
+def check_ip_abuse(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    now = datetime.utcnow()
+    global _ip_rate_limits
+    
+    _ip_rate_limits = {ip: times for ip, times in _ip_rate_limits.items() if times[-1] > now - timedelta(minutes=5)}
+    
+    if client_ip not in _ip_rate_limits:
+        _ip_rate_limits[client_ip] = []
+        
+    times = _ip_rate_limits[client_ip]
+    times = [t for t in times if t > now - timedelta(minutes=1)]
+    
+    if len(times) >= 10:
+        raise HTTPException(status_code=429, detail="Too many requests from this IP. Please try again later.")
+        
+    times.append(now)
+    _ip_rate_limits[client_ip] = times
+    return client_ip
 
 
 class RegisterInitiateRequest(BaseModel):
@@ -21,7 +44,7 @@ class RegisterInitiateRequest(BaseModel):
 
 
 @router.post("/register/initiate")
-def initiate_registration(user_in: RegisterInitiateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def initiate_registration(user_in: RegisterInitiateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), ip: str = Depends(check_ip_abuse)):
     user = db.query(User).filter(User.email == user_in.email).first()
     if user:
         raise HTTPException(
@@ -61,7 +84,7 @@ class RegisterVerifyRequest(BaseModel):
 
 
 @router.post("/register")
-def register_user(user_in: RegisterVerifyRequest, db: Session = Depends(get_db)):
+def register_user(user_in: RegisterVerifyRequest, db: Session = Depends(get_db), ip: str = Depends(check_ip_abuse)):
     user = db.query(User).filter(User.email == user_in.email).first()
     if user:
         raise HTTPException(status_code=400, detail="The user already exists.")
@@ -107,7 +130,7 @@ def register_user(user_in: RegisterVerifyRequest, db: Session = Depends(get_db))
 
 
 @router.post("/login", response_model=Token)
-def login_access_token(user_in: UserLogin, db: Session = Depends(get_db)):
+def login_access_token(user_in: UserLogin, db: Session = Depends(get_db), ip: str = Depends(check_ip_abuse)):
     user = db.query(User).filter(User.email == user_in.email).first()
     if not user or not verify_password(user_in.password, user.hashed_password):
         # SIAME / SES-008: Log failed authentication attempt
@@ -152,7 +175,7 @@ class ForgotPasswordRequest(BaseModel):
 
 
 @router.post("/forgot-password")
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db), ip: str = Depends(check_ip_abuse)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
         return {"message": "If that email is registered, a password reset OTP has been sent."}
@@ -189,7 +212,7 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/reset-password")
-def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db), ip: str = Depends(check_ip_abuse)):
     from app.models.otp import OTPModel
     otp_record = db.query(OTPModel).filter(
         OTPModel.email == payload.email,
@@ -223,7 +246,7 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 
 
 @router.post("/accept-invite")
-def accept_invite(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+def accept_invite(payload: ResetPasswordRequest, db: Session = Depends(get_db), ip: str = Depends(check_ip_abuse)):
     from app.models.otp import OTPModel
     otp_record = db.query(OTPModel).filter(
         OTPModel.email == payload.email,
