@@ -33,42 +33,52 @@ class RevenueIntelligenceEngine(BaseService):
 
         rule_id = rule_finding.get("rule_id", "")
 
-        # Default No-Risk Financial Profile
-        revenue = {
-            "revenue_risk_category": "None",
-            "estimated_financial_exposure": "$0.00",
-            "revenue_confidence": "High",
-            "operational_dependency": "Normal operations."
-        }
+        from pydantic import BaseModel
+        from typing import Literal
 
-        if rule_id == "SCH-001":  # No-show
-            revenue = {
-                "revenue_risk_category": "Operational Revenue Risk",
-                "estimated_financial_exposure": "$150.00",
-                "revenue_confidence": "Moderate",
-                "operational_dependency": "Unable to backfill appointment slot in time."
-            }
-        elif rule_id == "SCH-002":  # Wait time exceeded
-            revenue = {
-                "revenue_risk_category": "Operational Revenue Risk",
-                "estimated_financial_exposure": "Variable",
-                "revenue_confidence": "Low",
-                "operational_dependency": "Patient satisfaction drop and potential walk-outs reducing daily visit count."}
-        elif rule_id == "OPS-001":  # Missed Call
-            revenue = {
-                "revenue_risk_category": "Registration Risk",
-                "estimated_financial_exposure": "$125.00 (per lost booking)",
-                "revenue_confidence": "Moderate",
-                "operational_dependency": "Front-desk availability to return call within 15 minutes."}
-        elif rule_id == "CLIN-001":  # Pending Lab Review
-            revenue = {
-                "revenue_risk_category": "Documentation Risk",
-                "estimated_financial_exposure": "Claim Hold (100% of Encounter)",
-                "revenue_confidence": "High",
-                "operational_dependency": "Provider must sign the pending lab report in EHR."
-            }
+        class RevenueResult(BaseModel):
+            revenue_risk_category: str | None = None
+            estimated_financial_exposure: str | None = None
+            revenue_confidence: Literal["HIGH", "MODERATE", "LOW", "UNAVAILABLE"] = "UNAVAILABLE"
+            operational_dependency: str | None = None
 
-        return revenue
+        if rule_id == "RULE-SCH-001":  # No-show
+            revenue = RevenueResult(
+                revenue_risk_category="Operational Revenue Risk",
+                estimated_financial_exposure="$150.00",
+                revenue_confidence="MODERATE",
+                operational_dependency="Unable to backfill appointment slot in time."
+            )
+        elif rule_id == "RULE-SCH-002":  # Wait time exceeded
+            revenue = RevenueResult(
+                revenue_risk_category="Operational Revenue Risk",
+                estimated_financial_exposure="Variable",
+                revenue_confidence="LOW",
+                operational_dependency="Patient satisfaction drop and potential walk-outs reducing daily visit count."
+            )
+        elif rule_id == "RULE-OPS-001":  # Missed Call
+            revenue = RevenueResult(
+                revenue_risk_category="Registration Risk",
+                estimated_financial_exposure="$125.00 (per lost booking)",
+                revenue_confidence="MODERATE",
+                operational_dependency="Front-desk availability to return call within 15 minutes."
+            )
+        elif rule_id == "RULE-CLIN-001":  # Pending Lab Review
+            revenue = RevenueResult(
+                revenue_risk_category="Documentation Risk",
+                estimated_financial_exposure="Claim Hold (100% of Encounter)",
+                revenue_confidence="HIGH",
+                operational_dependency="Provider must sign the pending lab report in EHR."
+            )
+        else:
+            revenue = RevenueResult(
+                revenue_risk_category=None,
+                estimated_financial_exposure=None,
+                revenue_confidence="UNAVAILABLE",
+                operational_dependency=None
+            )
+
+        return revenue.dict()
 
 
 revenue_intelligence_engine = RevenueIntelligenceEngine()

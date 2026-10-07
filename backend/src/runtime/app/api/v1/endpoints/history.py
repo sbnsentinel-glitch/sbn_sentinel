@@ -129,49 +129,61 @@ def _empty_bindings():
 
 
 def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[str, Any]:
-    # Event / Evidence (D4 Persisted Context instead of OperationalEventModel)
     decision_context_id = rec.decision_context_id
     evidence_refs = []
-    if decision_context_id:
+    errors = []
+    
+    if not decision_context_id:
+        errors.append("missing_context")
+    else:
         evidence_records = db.query(ContextEvidenceModel).filter(ContextEvidenceModel.context_id == decision_context_id).all()
         for ev in evidence_records:
-            evidence = db.query(EvidenceModel).filter(
-                EvidenceModel.evidence_id == ev.id
-            ).first()
-            evidence_refs.append({
-                "evidence_id": ev.id,
-                "version": str(evidence.version) if evidence and evidence.version is not None else None
-            })
+            evidence = db.query(EvidenceModel).filter(EvidenceModel.evidence_id == ev.evidence_id).all()
+            if len(evidence) > 1:
+                errors.append("ambiguous_evidence")
+            elif len(evidence) == 1:
+                e = evidence[0]
+                evidence_refs.append({
+                    "evidence_id": e.evidence_id,
+                    "version": str(e.version) if e.version is not None else None
+                })
+            else:
+                errors.append("missing_evidence")
 
-    # Policy / Rule evaluations
     evals = []
     policy = None
+    rule_eval = None
     if rec.rule_evaluation_id:
-        rule_eval = db.query(RuleEvaluationModel).filter(RuleEvaluationModel.evaluation_id == rec.rule_evaluation_id).first()
-        if rule_eval:
+        rule_eval_rows = db.query(RuleEvaluationModel).filter(RuleEvaluationModel.evaluation_id == rec.rule_evaluation_id).all()
+        if len(rule_eval_rows) > 1:
+            errors.append("ambiguous_rule_eval")
+        elif len(rule_eval_rows) == 1:
+            rule_eval = rule_eval_rows[0]
             evals.append({
                 "evaluation_id": rule_eval.evaluation_id,
                 "rule_id": rule_eval.rule_id,
                 "rule_version": rule_eval.rule_version,
                 "policy_id": rule_eval.policy_id,
                 "policy_version": rule_eval.policy_version,
-                "evaluated_at": rule_eval.evaluation_timestamp if rule_eval.evaluation_timestamp else None
+                "evaluated_at": rule_eval.evaluation_timestamp.isoformat() + "Z" if rule_eval.evaluation_timestamp else None
             })
             policy = {
                 "policy_id": rule_eval.policy_id,
                 "policy_version": rule_eval.policy_version
             }
+        else:
+            errors.append("missing_rule_eval")
+    else:
+        errors.append("missing_rule_eval")
 
-    # Recommendations
     recs_out = [{
         "recommendation_id": rec.recommendation_id,
         "mapping_id": rec.mapping_id,
         "mapping_version": rec.mapping_version,
         "status": rec.status,
-        "generated_at": rec.generated_at + "Z" if (rec.generated_at and not rec.generated_at.endswith("Z")) else rec.generated_at
+        "generated_at": rec.generated_at.isoformat() + "Z" if hasattr(rec.generated_at, 'isoformat') else (rec.generated_at + "Z" if rec.generated_at and not rec.generated_at.endswith("Z") else rec.generated_at)
     }]
 
-    # Decisions
     decisions_out = []
     decisions = db.query(HumanDecisionModel).filter(HumanDecisionModel.recommendation_id == rec.recommendation_id).all()
     for d in decisions:
@@ -180,10 +192,9 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
             "actor_id": d.actor_id,
             "decision_type": d.decision_type,
             "status": d.status,
-            "timestamp": d.decision_timestamp,
+            "timestamp": d.decision_timestamp.isoformat() + "Z" if hasattr(d.decision_timestamp, 'isoformat') else d.decision_timestamp
         })
 
-    # Actions
     actions_out = []
     for d in decisions:
         actions = db.query(OperationalActionModel).filter(OperationalActionModel.authorization_reference == d.decision_id).all()
@@ -198,8 +209,11 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
                 })
 
             outcome_out = None
-            outcome = db.query(OperationalOutcomeModel).filter(OperationalOutcomeModel.action_id == a.action_id).first()
-            if outcome:
+            outcomes = db.query(OperationalOutcomeModel).filter(OperationalOutcomeModel.action_id == a.action_id).all()
+            if len(outcomes) > 1:
+                errors.append("ambiguous_outcome")
+            elif len(outcomes) == 1:
+                outcome = outcomes[0]
                 outcome_out = {
                     "outcome_id": outcome.outcome_id,
                     "confirmation_state": outcome.confirmation_state,
@@ -215,10 +229,13 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
                 "outcome": outcome_out
             })
 
-    # Normal complete historical chain returns "valid", orphaned if rule_eval missing
-    technical_state = "valid"
-    if not rec.rule_evaluation_id or not evals:
-        technical_state = "orphaned"
+    if errors:
+        if "ambiguous_evidence" in errors or "ambiguous_rule_eval" in errors or "ambiguous_outcome" in errors:
+            technical_state = "ambiguous"
+        else:
+            technical_state = "orphaned"
+    else:
+        technical_state = "valid"
 
     return {
         "anchor": {

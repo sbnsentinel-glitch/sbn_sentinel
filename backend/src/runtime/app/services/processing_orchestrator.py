@@ -439,20 +439,24 @@ class ProcessingOrchestrator:
 
             from app.models.intelligence import RuleFindingModel
             findings_list = response.result_payload.get("findings", [])
-            # Only keep findings that actually met the condition or were blocked
-            active_findings = [
-                f for f in findings_list if f.get("result") in (
-                    "CONDITION_MET", "NOT_EVALUABLE")]
-            first_finding = active_findings[0] if active_findings else (
-                findings_list[0] if findings_list else {})
+            # Only keep findings that actually met the condition
+            active_findings = [f for f in findings_list if f.get("result") == "CONDITION_MET"]
 
-            event.rule_findings = [RuleFindingModel(
-                rule_id=first_finding.get("rule_id", "Unknown"),
-                severity=first_finding.get("result", "Information"),
-                description=first_finding.get("result", ""),
-                evaluation_id=first_finding.get("evaluation_id", "UNKNOWN_EVALUATION")
-            )]
-            event.rule_version = first_finding.get("rule_version", "Unknown")
+            # If no CONDITION_MET finding exists, we shouldn't arbitrarily pick the first one
+            if not active_findings:
+                # F-11: we pass an empty array, intelligence engine handles NO_RECOMMENDATION
+                event.rule_findings = []
+                event.rule_version = "Unknown"
+            else:
+                first_finding = active_findings[0]
+                event.rule_findings = [RuleFindingModel(
+                    rule_id=first_finding.get("rule_id", "Unknown"),
+                    severity=first_finding.get("result", "Information"), # For DB compatibility
+                    description=first_finding.get("result", ""), # Temporarily store exact result
+                    evaluation_id=first_finding.get("evaluation_id", "UNKNOWN_EVALUATION")
+                )]
+                event.rule_version = first_finding.get("rule_version", "Unknown")
+
             event.layer6_duration_ms = (time.time() - t_start) * 1000
 
             db.commit()
@@ -470,7 +474,6 @@ class ProcessingOrchestrator:
     def _layer7_intelligence(self, event: OperationalEventModel, db) -> OperationalEventModel:
         """
         Takes objective rule findings and generates executive recommendations.
-        """
         t_start = time.time()
         try:
             request = ServiceRequest(
@@ -482,7 +485,8 @@ class ProcessingOrchestrator:
                         {
                             "rule_id": rf.rule_id,
                             "severity": rf.severity,
-                            "evaluation_id": rf.evaluation_id} for rf in event.rule_findings] if event.rule_findings else {},
+                            "result": rf.description, # F-11: recover exact result
+                            "evaluation_id": rf.evaluation_id} for rf in event.rule_findings] if event.rule_findings else [],
                     "context": {
                         "id": event.decision_context.id,
                         "primary_context": event.decision_context.primary_context,
@@ -570,9 +574,9 @@ class ProcessingOrchestrator:
 
             from app.models.intelligence import RevenueIntelligenceModel
             event.revenue_intelligence = RevenueIntelligenceModel(
-                estimated_exposure=response.result_payload.get("estimated_exposure", ""),
-                opportunity_category=response.result_payload.get("opportunity_category", ""),
-                financial_priority=response.result_payload.get("financial_priority", "")
+                estimated_exposure=response.result_payload.get("estimated_financial_exposure", ""),
+                opportunity_category=response.result_payload.get("revenue_risk_category", ""),
+                financial_priority=response.result_payload.get("revenue_confidence", "")
             )
             event.revenue_result = response.result_payload  # Keep dynamic attr just in case
             event.layer8_duration_ms = (time.time() - t_start) * 1000
@@ -631,8 +635,13 @@ class ProcessingOrchestrator:
                 operational_dependency="",
             )
 
+            class PersistenceError(Exception):
+                pass
+
             success = data_audit_engine.save_intelligence_record(signal_event)
-            event.layer7_storage_ref = event.id if success else "FAILED"
+            if not success:
+                raise PersistenceError("Mandatory intelligence persistence failed")
+            event.layer7_storage_ref = event.id
 
             # Save Decision Record Audit Trail
             intel_result = getattr(event, "intelligence_result", {})

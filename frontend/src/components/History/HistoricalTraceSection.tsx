@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { t } from '../../localization/messages';
 import { History } from 'lucide-react';
 import { ProgressiveSection } from '../GovernedUI/ProgressiveSection';
 import { getHistoricalJourney, reproduceDecision } from '../../utils/history';
@@ -44,7 +45,7 @@ export const HistoricalTraceSection: React.FC<HistoricalTraceSectionProps> = ({ 
                 }
             } catch (err: any) {
                 console.error("History fetch error:", err);
-                setError(err.message || "Failed to load historical trace");
+                setError(err.message || t.history.fetchError);
             } finally {
                 setLoading(false);
             }
@@ -64,7 +65,7 @@ export const HistoricalTraceSection: React.FC<HistoricalTraceSectionProps> = ({ 
             icon={<History className="w-5 h-5 text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.6)]" />}
             defaultExpanded={false}
             dataState={dataState}
-            dataStateMessage={error || 'No historical trace available'}
+            dataStateMessage={error || t.history.noTrace}
         >
             {context && (
                 <div className="space-y-6 pt-4 pb-2">
@@ -80,7 +81,7 @@ export const HistoricalTraceSection: React.FC<HistoricalTraceSectionProps> = ({ 
                     {reproducing && (
                         <div className="flex items-center gap-3 mt-6 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
                             <div className="w-4 h-4 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
-                            <div className="text-sm text-indigo-200 font-medium tracking-wide">Running deterministic reproduction...</div>
+                            <div className="text-sm text-indigo-200 font-medium tracking-wide">{t.history.runningReproduction}</div>
                         </div>
                     )}
 

@@ -52,7 +52,8 @@ class OperationalExecutionEngine(BaseService):
                 "message": f"Cannot create action for decision type: {decision.decision_type.value}"}
 
         try:
-            action_type = ActionType(action_type_str.upper())
+            # F-26: Exact enum lookup without case conversion
+            action_type = ActionType(action_type_str)
         except ValueError:
             return {"status": "ERROR", "message": f"Invalid action type: {action_type_str}"}
 
@@ -69,7 +70,15 @@ class OperationalExecutionEngine(BaseService):
                 target_clinic_id = None
                 target_journey_id = None
 
-                encounter = db.query(EncounterModel).filter(EncounterModel.id == target_reference).first()
+                # F-23: Explicit scope verification before processing mock postfix
+                base_target = target_reference
+                if getattr(settings, "SYNTHETIC_TEST_ENABLED", False):
+                    for postfix in ["-FAIL", "-UNKNOWN", "-UNAVAILABLE"]:
+                        if target_reference.endswith(postfix):
+                            base_target = target_reference[:-len(postfix)]
+                            break
+
+                encounter = db.query(EncounterModel).filter(EncounterModel.id == base_target).first()
                 if encounter:
                     target_clinic_id = encounter.clinic_id
                     target_journey_id = getattr(encounter, "journey_id", None)
@@ -81,7 +90,7 @@ class OperationalExecutionEngine(BaseService):
                 else:
                     # Check if target is a clinic directly
                     org_clinic = db.query(OrganizationClinicModel).filter(
-                        OrganizationClinicModel.id == target_reference).first()
+                        OrganizationClinicModel.id == base_target).first()
                     if org_clinic:
                         target_org_id = org_clinic.organization_id
                         target_clinic_id = org_clinic.id
@@ -205,6 +214,8 @@ class OperationalExecutionEngine(BaseService):
 
         # EXV-007: Invalidated Authorization
         if decision.status != DecisionStatus.RECORDED:
+            if decision.status.value in ["REVOKED", "EXPIRED", "REJECTED"]:
+                return {"eligible": False, "reason": f"AUTHORIZATION_REVOKED (Status: {decision.status.value})"}
             return {
                 "eligible": False,
                 "reason": f"AUTHORIZATION_NOT_RECORDED (Status: {decision.status.value})"}
@@ -212,6 +223,31 @@ class OperationalExecutionEngine(BaseService):
         # EXV-009: Action expiration
         if action.execute_by and datetime.utcnow() > action.execute_by:
             return {"eligible": False, "reason": "ACTION_EXPIRED"}
+
+        # EXV-010: Validate target reference exists
+        from app.db.database import SessionLocal
+        from app.models.encounter import EncounterModel
+        from app.models.organization import OrganizationClinicModel
+        
+        db = SessionLocal()
+        try:
+            target_exists = False
+            base_target = action.target_reference
+            if getattr(settings, "SYNTHETIC_TEST_ENABLED", False):
+                for postfix in ["-FAIL", "-UNKNOWN", "-UNAVAILABLE"]:
+                    if action.target_reference.endswith(postfix):
+                        base_target = action.target_reference[:-len(postfix)]
+                        break
+            
+            if db.query(EncounterModel).filter(EncounterModel.id == base_target).first():
+                target_exists = True
+            elif db.query(OrganizationClinicModel).filter(OrganizationClinicModel.id == base_target).first():
+                target_exists = True
+                
+            if not target_exists:
+                return {"eligible": False, "reason": "TARGET_NOT_FOUND_OR_UNSUPPORTED"}
+        finally:
+            db.close()
 
         return {"eligible": True}
 
@@ -311,18 +347,26 @@ class OperationalExecutionEngine(BaseService):
             return {
                 "result": ExecutionResult.FAILED,
                 "error": "TARGET_REJECTED",
-                "message": "External system rejected the operation."}
+                "message": "External system rejected the operation."
+            }
         elif target.endswith("-UNKNOWN"):
-            return {"result": ExecutionResult.UNKNOWN, "error": "CONNECTION_TIMEOUT",
-                    "message": "Connection lost before response was received."}
+            return {
+                "result": ExecutionResult.UNKNOWN, 
+                "error": "CONNECTION_TIMEOUT",
+                "message": "Connection lost before response was received."
+            }
         elif target.endswith("-UNAVAILABLE"):
             return {
                 "result": ExecutionResult.FAILED,
                 "error": "CONNECTOR_UNAVAILABLE",
-                "message": "Connector is offline."}
+                "message": "Connector is offline."
+            }
         else:
-            return {"result": ExecutionResult.SUCCESS,
-                    "message": "Operation successfully confirmed."}
+            return {
+                "result": ExecutionResult.SUCCESS,
+                "error": None,
+                "message": "Operation successfully confirmed."
+            }
 
 
 operational_execution_engine = OperationalExecutionEngine()

@@ -130,7 +130,30 @@ class ReconstructionEngine:
             # 3a. Reproduce Rule Logic (isolated context)
 
             import json
-            inputs = json.loads(eval_record.input_values_json) if eval_record.input_values_json else {}
+            
+            if not eval_record.input_values_json:
+                return ReproductionResult(
+                    status="NOT_REPRODUCIBLE",
+                    recommendation_id=recommendation_id,
+                    original=original_rec,
+                    reproduced=None,
+                    differences=[],
+                    diagnostic_stage="historical_logic",
+                    diagnostic_code="MISSING_INPUTS"
+                )
+                
+            try:
+                inputs = json.loads(eval_record.input_values_json)
+            except json.JSONDecodeError:
+                return ReproductionResult(
+                    status="NOT_REPRODUCIBLE",
+                    recommendation_id=recommendation_id,
+                    original=original_rec,
+                    reproduced=None,
+                    differences=[],
+                    diagnostic_stage="historical_logic",
+                    diagnostic_code="INVALID_INPUTS"
+                )
 
             # Execute real rule engine logic dynamically, discarding the hardcoded stubs.
             from app.services.rules_engine import rules_engine
@@ -141,6 +164,17 @@ class ReconstructionEngine:
             except Exception as e:
                 logger.error(f"Rule reproduction failed: {e}")
                 rule_result = "NOT_EVALUABLE"
+                
+            if rule_result == "NOT_EVALUABLE":
+                return ReproductionResult(
+                    status="NOT_REPRODUCIBLE",
+                    recommendation_id=recommendation_id,
+                    original=original_rec,
+                    reproduced=None,
+                    differences=[],
+                    diagnostic_stage="historical_logic",
+                    diagnostic_code="MISSING_EXECUTABLE"
+                )
 
             # 3b. Reproduce Recommendation
             reproduced_rec = {}
@@ -152,10 +186,11 @@ class ReconstructionEngine:
                     "expected_outcome": historical_mapping.expected_outcome_template,
                     "mapping_version": historical_mapping.version
                 }
-            elif rule_result == "NOT_EVALUABLE" or rule_result == "CONDITION_NOT_MET":
+            elif rule_result == "CONDITION_NOT_MET":
                 reproduced_rec = {
-                    "action": "Review policy rules.",
-                    "priority": "Information"
+                    "action": "NO_RECOMMENDATION",
+                    "priority": "Information",
+                    "mapping_version": None
                 }
 
             # 4. Compare Outputs

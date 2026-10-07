@@ -9,8 +9,11 @@ services:
       - ./backend/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -18,7 +21,8 @@ services:
     container_name: sbnsentinel_backend
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - ./backend/.env
     # Removed ports, Caddy handles routing

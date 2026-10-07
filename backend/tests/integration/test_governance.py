@@ -864,48 +864,35 @@ def test_a026b_practice_fusion_readiness(monkeypatch):
     monkeypatch.setattr(SigningKeyProvider, "is_configured", lambda: True)
 
     try:
+        from app.services.connector_manager import connector_runtime_state, ConnectorRuntimeStateDTO
+        
         # Get auth token
         res = local_client.post("/api/v1/auth/login", json={"email": admin_email, "password": "Test@123"})
         token = res.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
-        # 1. No PF ConnectorModel -> 503, pf=false
-        db.query(ConnectorModel).delete()
-        db.commit()
+        # 1. No state -> 503, pf=false
+        connector_runtime_state.set("PRACTICE_FUSION", ConnectorRuntimeStateDTO(capability_state="UNCONFIGURED", is_stale=True))
         r1 = local_client.get("/api/v1/health/ready", headers=headers)
         assert r1.status_code == 503
         assert r1.json()["detail"]["checks"]["pf"] is False
 
-        # 2. Only an unrelated connector exists -> 503, pf=false
-        db.add(ConnectorModel(
-            id="CONN-OTHER", name="Random CRM", type="CRM", status="Healthy",
-            latency_ms=10, last_sync=datetime.utcnow(), config={"client_id": "test", "base_url": "http://test"}
-        ))
-        db.commit()
+        # 2. Only an unrelated connector -> 503, pf=false
         r2 = local_client.get("/api/v1/health/ready", headers=headers)
         assert r2.status_code == 503
-        assert r2.json()["detail"]["checks"]["pf"] is False
 
-        # 3. PF record exists but no credential/token -> 503
-        pf1 = ConnectorModel(
-            id="CONN-PF-TEST", name="Practice Fusion EHR", type="EHR", status="Healthy",
-            latency_ms=10, last_sync=datetime.utcnow(), config={}
-        )
-        db.add(pf1)
-        db.commit()
+        # 3. CONFIGURED but not AUTH_VERIFIED -> 503
+        connector_runtime_state.set("PRACTICE_FUSION", ConnectorRuntimeStateDTO(capability_state="CONFIGURED", is_stale=False))
         r3 = local_client.get("/api/v1/health/ready", headers=headers)
         assert r3.status_code == 503
 
-        # 4. PF status is Warning or Disconnected -> 503
-        pf1.config = {"client_id": "test", "base_url": "http://test"}
-        pf1.status = "Warning"
-        db.commit()
+        # 4. DEGRADED or STALE -> 503
+        connector_runtime_state.set("PRACTICE_FUSION", ConnectorRuntimeStateDTO(capability_state="AUTHORIZED_READY", is_stale=True))
         r4 = local_client.get("/api/v1/health/ready", headers=headers)
         assert r4.status_code == 503
 
-        # 5. Properly configured, real Healthy PF connector -> 200, pf=true
-        pf1.status = "Healthy"
-        db.commit()
+        # 5. AUTHORIZED_READY and not stale -> 200, pf=true
+        connector_runtime_state.set("PRACTICE_FUSION", ConnectorRuntimeStateDTO(capability_state="AUTHORIZED_READY", is_stale=False))
         r5 = local_client.get("/api/v1/health/ready", headers=headers)
         assert r5.status_code == 200
         assert r5.json()["ready"] is True

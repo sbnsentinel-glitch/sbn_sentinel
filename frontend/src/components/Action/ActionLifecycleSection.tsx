@@ -127,15 +127,25 @@ export const ActionLifecycleSection: React.FC<Props> = ({ decisionId }) => {
             <ExecutionAttemptHistory attempts={action.attempts} />
           </div>
 
-          {/* 3. Outcome — only if exists; never inferred */}
-          {action.outcome && (
-            <div>
-              <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-2">
-                Operational Outcome
-              </p>
+          {/* 3. Outcome — explicitly show pending if missing */}
+          <div>
+            <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-2">
+              Operational Outcome
+            </p>
+            {action.outcome ? (
               <OutcomeSummary outcome={action.outcome} />
-            </div>
-          )}
+            ) : (
+              <div className="bg-white/5 border border-white/10 rounded-[12px] p-4 flex items-center gap-3">
+                <span className="p-1.5 rounded-[8px] bg-amber-500/20">
+                  <Loader className="w-4 h-4 text-amber-400 animate-spin" />
+                </span>
+                <div>
+                  <p className="text-xs font-extrabold text-white uppercase tracking-wide">Pending Confirmation</p>
+                  <p className="text-[10px] text-white/40">Waiting for authoritative verification of external state.</p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* 4. Execute / Retry controls */}
           <ExecuteActionControls action={action} onSuccess={load} />

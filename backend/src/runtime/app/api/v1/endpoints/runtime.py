@@ -28,9 +28,10 @@ def get_runtime_status(
     connector_dtos = []
 
     # Analyze Practice Fusion (EHR Capability)
-    pf_connector = next((c for c in connectors if "Practice Fusion" in c.name), None)
+    from app.services.connector_manager import connector_runtime_state
+    pf_state = connector_runtime_state.get("PRACTICE_FUSION")
 
-    if not pf_connector:
+    if pf_state.capability_state == "UNCONFIGURED":
         # T01: PF absent -> UNAVAILABLE
         capabilities.append({
             "capability_id": "ehr_read",
@@ -41,18 +42,18 @@ def get_runtime_status(
             "retry_supported": False,
             "last_confirmed_at": None
         })
-    elif pf_connector.status not in ["Healthy", "Ready"] or not pf_connector.access_token:
+    elif pf_state.capability_state in ["CONFIGURED", "AUTH_VERIFIED", "DEGRADED", "STALE"]:
         # T02, T03: PF unhealthy or missing token -> DEGRADED/UNAVAILABLE
-        state = "UNAVAILABLE" if not pf_connector.access_token else "DEGRADED"
+        state = "UNAVAILABLE" if pf_state.capability_state in ["CONFIGURED", "STALE"] else "DEGRADED"
         capabilities.append({
             "capability_id": "ehr_read",
             "label": "EHR Data Retrieval",
             "state": state,
             "affected_scope": "Practice Fusion Sync",
             "can_continue": False,
-            "retry_supported": bool(pf_connector.access_token),
-            "last_confirmed_at": pf_connector.last_sync.isoformat() + "Z" if pf_connector.last_sync else None,
-            "diagnostic_ref": f"CONN-{pf_connector.id[:8]}"
+            "retry_supported": pf_state.capability_state in ["AUTH_VERIFIED", "DEGRADED"],
+            "last_confirmed_at": pf_state.last_verified_at.isoformat() + "Z" if pf_state.last_verified_at else None,
+            "diagnostic_ref": "CONN-PF"
         })
     else:
         capabilities.append({
@@ -61,7 +62,7 @@ def get_runtime_status(
             "state": "READY",
             "can_continue": True,
             "retry_supported": False,
-            "last_confirmed_at": pf_connector.last_sync.isoformat() + "Z" if pf_connector.last_sync else None
+            "last_confirmed_at": pf_state.last_verified_at.isoformat() + "Z" if pf_state.last_verified_at else None
         })
 
     for c in connectors:

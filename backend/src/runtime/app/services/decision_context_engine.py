@@ -165,13 +165,17 @@ class DecisionContextEngine(BaseService):
         validator = ContextValidator(None)
         serializer = ContextSerializer()
 
-        try:
-            # We run this synchronously to avoid breaking the existing BaseService caller
-            new_package = builder.build(event_type, evidence_items)
-            new_package = validator.validate(new_package)
-            serialized_package = serializer.serialize(new_package)
-        except Exception:
-            serialized_package = {"error": "Failed to build AIS-002 context"}
+        class DecisionContextInvalid(Exception):
+            pass
+
+        new_package = builder.build(event_type, evidence_items)
+        validated = validator.validate(new_package)
+        
+        # F-12: Hard gate
+        if hasattr(validated, "is_valid") and not validated.is_valid:
+            raise DecisionContextInvalid(getattr(validated, "errors", "Validation failed"))
+            
+        serialized_package = serializer.serialize(validated)
 
         # Inject AIS-002 Package into the legacy response to avoid breaking downstream
         context["ais_002_decision_context_package"] = serialized_package

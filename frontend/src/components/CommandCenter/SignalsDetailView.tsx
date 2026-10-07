@@ -141,8 +141,10 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
   }, []);
   useEffect(() => {
     if (selectedSignal) {
+      setCurrentDecisionId(null);
       loadDecisionBasis(selectedSignal.id);
     } else {
+      setCurrentDecisionId(null);
       setBasisData(null);
       setBasisLoading(false);
     }
@@ -344,6 +346,13 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
                   }
                 }}
               />
+              
+              {/* D6.10 — Action Lifecycle Workflow */}
+              {currentDecisionId && (
+                <div className="mt-8 border-t border-white/10 pt-6">
+                  <ActionLifecycleSection decisionId={currentDecisionId} />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -475,7 +484,11 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
             </ProgressiveSection>
 
             {/* D8 — Historical Trace & Reproducibility */}
-            <HistoricalTraceSection journeyId={selectedSignal.id} />
+            {(() => {
+              const journeyId = basisData?.journey_id ?? selectedSignal.correlation_id;
+              if (!journeyId) return <div className="text-gray-400 p-4">No journey context available</div>;
+              return <HistoricalTraceSection journeyId={journeyId} />;
+            })()}
           </div>
         </ContextPanel>
       </>

@@ -124,13 +124,15 @@ class OperationalOutcomeEngine(BaseService):
         closure_reason = None
         closed_at = None
 
-        if confirmation_state == OutcomeConfirmationState.CONFIRMED:
+        from app.services.governance_registry import ActionStatus
+        
+        if confirmation_state == OutcomeConfirmationState.CONFIRMED and action.status == ActionStatus.COMPLETED:
+            resolution_state = OutcomeResolutionState.RESOLVED
+            closure_reason = "SUCCESS_CONFIRMED"
+            closed_at = datetime.utcnow()
+        elif confirmation_state == OutcomeConfirmationState.MISMATCH or action.status == ActionStatus.FAILED:
             resolution_state = OutcomeResolutionState.UNRESOLVED
-            closure_reason = None
-            closed_at = None
-        elif confirmation_state == OutcomeConfirmationState.MISMATCH:
-            resolution_state = OutcomeResolutionState.UNRESOLVED
-            closure_reason = "CONFIRMED_MISMATCH"
+            closure_reason = "CONFIRMED_MISMATCH" if confirmation_state == OutcomeConfirmationState.MISMATCH else "ACTION_FAILED"
 
         # 6. Save or Update Record
         if existing_outcome:

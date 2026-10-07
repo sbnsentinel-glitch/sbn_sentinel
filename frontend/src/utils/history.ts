@@ -24,5 +24,9 @@ export async function getHistoricalJourney(journeyId: string): Promise<Historica
  */
 export async function reproduceDecision(recommendationId: string): Promise<ReproductionResult> {
     const res = await fetchWithAuth(`/api/v1/history/recommendations/${recommendationId}/reproduction`);
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid content type from server");
+    }
     return res.json();
 }

@@ -73,6 +73,9 @@ class Settings(BaseSettings):
             if not self.JWT_KEY_ID:
                 raise ValueError(
                     "PRODUCTION_JWT_ERROR: JWT_KEY_ID must be set in production.")
+            # F-29: Require PostgreSQL in PRODUCTION
+            if not self.SQLALCHEMY_DATABASE_URL.startswith("postgresql"):
+                raise ValueError("Production requires PostgreSQL")
         if not self.CLINIC_TIMEZONE:
             raise ValueError("SESR-012 CDI-014 Violation: CLINIC_TIMEZONE is required")
         return self

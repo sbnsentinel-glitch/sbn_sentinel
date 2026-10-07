@@ -113,27 +113,33 @@ class RulesEngine(BaseService):
 
     def _execute_rule_logic(self, rule: RuleVersion, inputs: Dict[str, Any]) -> str:
         """Deterministically evaluates rule conditions."""
-
-        if rule.rule_id == "RULE-SCH-001":
-            # No-Show Rule
-            if inputs.get("primary_context") == "Operational" and inputs.get(
-                    "secondary_context") == "Provider Schedule Gap":
+        
+        def eval_sch_001_v1(inputs: Dict[str, Any]) -> str:
+            if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Provider Schedule Gap":
                 return "CONDITION_MET"
             return "CONDITION_NOT_MET"
 
-        elif rule.rule_id == "RULE-SCH-002":
-            # Wait Time Rule
-            if inputs.get("primary_context") == "Operational" and inputs.get(
-                    "secondary_context") == "Queue Congestion":
+        def eval_sch_002_v1(inputs: Dict[str, Any]) -> str:
+            if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Queue Congestion":
                 return "CONDITION_MET"
             return "CONDITION_NOT_MET"
 
-        elif rule.rule_id == "RULE-SCH-003":
+        def eval_sch_003_v1(inputs: Dict[str, Any]) -> str:
             if inputs.get("primary_context") == "Operational":
                 return "CONDITION_MET"
             return "CONDITION_NOT_MET"
 
-        return "CONDITION_MET"
+        RULE_HANDLERS = {
+            ("RULE-SCH-001", "1.0"): eval_sch_001_v1,
+            ("RULE-SCH-002", "1.0"): eval_sch_002_v1,
+            ("RULE-SCH-003", "1.0"): eval_sch_003_v1,
+        }
+
+        handler = RULE_HANDLERS.get((rule.rule_id, rule.version))
+        if not handler:
+            return "NOT_EVALUABLE"
+        
+        return handler(inputs)
 
 
 rules_engine = RulesEngine()

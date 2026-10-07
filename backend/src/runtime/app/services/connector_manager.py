@@ -91,31 +91,27 @@ class ConnectorManager:
         Fail-closed: returns False if the connector record is absent, unhealthy,
         or missing credentials.
         """
-        db = SessionLocal()
-        try:
-            search_name = "%Practice Fusion%" if "PRACTICE" in connector_name.upper() else f"%{connector_name}%"
-            row = db.query(ConnectorModel).filter(
-                ConnectorModel.name.ilike(search_name)
-            ).first()
-            if not row:
-                return False
-            if row.status not in {"Healthy", "Ready", "Configured"}:
-                return False
+        state = connector_runtime_state.get(connector_name)
+        return state.capability_state == "AUTHORIZED_READY" and not state.is_stale
 
-            from app.integrations.core.secrets import SigningKeyProvider
-            if not SigningKeyProvider.is_configured():
-                return False
+from pydantic import BaseModel
+from typing import Literal, Optional, Dict
+from datetime import datetime
 
-            config = row.config or {}
-            client_id = config.get("client_id")
-            base_url = config.get("base_url")
+class ConnectorRuntimeStateDTO(BaseModel):
+    capability_state: Literal["CONFIGURED", "AUTH_VERIFIED", "AUTHORIZED_READY", "DEGRADED", "STALE", "UNCONFIGURED"]
+    is_stale: bool
+    last_verified_at: Optional[datetime] = None
 
-            if not client_id or not base_url:
-                return False
+class ConnectorRuntimeStateManager:
+    def __init__(self):
+        self._states: Dict[str, ConnectorRuntimeStateDTO] = {}
+        
+    def get(self, name: str) -> ConnectorRuntimeStateDTO:
+        return self._states.get(name, ConnectorRuntimeStateDTO(capability_state="UNCONFIGURED", is_stale=True))
+        
+    def set(self, name: str, state: ConnectorRuntimeStateDTO):
+        self._states[name] = state
 
-            return True
-        finally:
-            db.close()
-
-
+connector_runtime_state = ConnectorRuntimeStateManager()
 connector_manager = ConnectorManager()

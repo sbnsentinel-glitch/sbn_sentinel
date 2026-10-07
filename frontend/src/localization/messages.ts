@@ -37,7 +37,10 @@ export const LOCALES = {
     },
     history: {
       title: "History",
-      viewDetails: "View Details"
+      viewDetails: "View Details",
+      fetchError: "Failed to load historical trace",
+      noTrace: "No historical trace available",
+      runningReproduction: "Running deterministic reproduction..."
     }
   }
 };
