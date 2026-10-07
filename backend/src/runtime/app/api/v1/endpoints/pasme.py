@@ -65,7 +65,7 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str, db: Ses
         if not user_id:
             await websocket.close(code=1008)
             return
-            
+
         user = db.query(User).filter(User.id == int(user_id)).first()
         if not user or not user.is_active:
             await websocket.close(code=1008)
@@ -83,7 +83,7 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str, db: Ses
             if room_id != f"org_{user.org_id}":
                 await websocket.close(code=1008)
                 return
-                
+
     except JWTError:
         await websocket.close(code=1008)
         return
@@ -106,8 +106,8 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str, db: Ses
 
             db.refresh(user)
             if not user.is_active or (iat and user.token_invalid_before and datetime.fromtimestamp(iat) < user.token_invalid_before):
-                 await websocket.close(code=1008)
-                 return
+                await websocket.close(code=1008)
+                return
 
             data["sender_id"] = user_id
             data["role"] = user.role

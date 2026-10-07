@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.services.human_decision_engine import human_decision_engine
 from app.services.governance_registry import governance_registry
 from app.api.deps import get_current_user, get_db
-from app.models.signal import SignalModel
 from app.models.governance_storage import RuleEvaluationModel, RecommendationModel, HumanDecisionModel
 
 logger = logging.getLogger(__name__)
