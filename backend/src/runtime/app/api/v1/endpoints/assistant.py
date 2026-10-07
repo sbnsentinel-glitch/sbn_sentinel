@@ -29,7 +29,9 @@ async def chat_assistant(request: ChatRequest):
     checked_in = ctx.get("checked_in", 200)
     waiting = ctx.get("waiting", 57)
     delayed = ctx.get("delayed", 88)
-    active_patient = ctx.get("active_patient", "None selected")
+    # NOTE: active_patient is intentionally excluded from the AI prompt to prevent
+    # PHI leakage to external AI services (OpenAI / Google Gemini).
+    # Only aggregate, non-identifiable counts are sent externally.
     # 1. If OpenAI API Key is present, use GPT-4o for natural language explanation
     if OPENAI_API_KEY:
         try:
@@ -43,16 +45,17 @@ async def chat_assistant(request: ChatRequest):
                 client = OpenAI(api_key=OPENAI_API_KEY)
                 model_name = "gpt-4o"
 
+            # HIPAA: Only aggregate, de-identified operational counts are sent to external AI.
+            # No patient names, IDs, DOB, MRN, or PII are included.
             system_prompt = (
                 "You are SBN Sentinel's Conversational Assistant. Your role is to explain clinical telemetry, "
                 "patient flow status, and medical billing metrics to the user. "
                 "Do not perform calculations yourself. Sentinel's core engine does all calculations independently. "
                 "Instead, explain the current state using the context below.\n\n"
-                "CURRENT SENTINEL STATE CONTEXT:\n"
+                "CURRENT SENTINEL STATE CONTEXT (aggregate counts only — no PHI):\n"
                 f"- Checked-in Patients: {checked_in}\n"
                 f"- Currently in Consultation: {waiting}\n"
                 f"- Delayed Patients (Anomalies detected by Sentinel): {delayed}\n"
-                f"- Active selected patient: {active_patient}\n"
                 "Please respond to the user's message in a helpful, conversational manner, referencing the context if relevant."
             )
 
