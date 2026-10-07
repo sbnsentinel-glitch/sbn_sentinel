@@ -49,18 +49,41 @@ manager = ConnectionManager()
 
 
 @router.websocket("/chat/ws/{room_id}")
-async def websocket_chat(websocket: WebSocket, room_id: str, token: str):
+async def websocket_chat(websocket: WebSocket, room_id: str, token: str, db: Session = Depends(get_db)):
     """
     PASME Real-Time WebSocket for cross-browser Team Messaging.
     Secured as per F-02 requirements.
     """
+    origin = websocket.headers.get("origin")
+    if origin and origin not in settings.ALLOWED_WS_ORIGINS:
+        await websocket.close(code=1008)
+        return
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id = payload.get("sub")
-        role = payload.get("role")
         if not user_id:
             await websocket.close(code=1008)
             return
+            
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        if not user or not user.is_active:
+            await websocket.close(code=1008)
+            return
+
+        from datetime import datetime
+        iat = payload.get("iat")
+        if iat and user.token_invalid_before:
+            if datetime.fromtimestamp(iat) < user.token_invalid_before:
+                await websocket.close(code=1008)
+                return
+
+        # Room authorization
+        if user.role != UserRole.SYSTEM_ADMINISTRATOR.value:
+            if room_id != f"org_{user.org_id}":
+                await websocket.close(code=1008)
+                return
+                
     except JWTError:
         await websocket.close(code=1008)
         return
@@ -71,21 +94,23 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str):
         while True:
             data = await websocket.receive_json()
 
-            # Size limit check (approximate)
             if len(str(data)) > 2048:
                 await websocket.send_json({"error": "Message too large"})
                 continue
 
-            # Rate limit check (1 message per second)
             now = time.time()
             if now - last_msg_time < 1.0:
                 await websocket.send_json({"error": "Rate limit exceeded"})
                 continue
             last_msg_time = now
 
-            # Bind sender identity to the token, not client input
+            db.refresh(user)
+            if not user.is_active or (iat and user.token_invalid_before and datetime.fromtimestamp(iat) < user.token_invalid_before):
+                 await websocket.close(code=1008)
+                 return
+
             data["sender_id"] = user_id
-            data["role"] = role
+            data["role"] = user.role
             data["room_id"] = room_id
 
             await manager.broadcast(room_id, data)

@@ -87,28 +87,20 @@ def get_scoped_user(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
-def verify_object_scope(db: Session, current_user: User, target_reference: str):
-    if current_user.role == UserRole.SYSTEM_ADMINISTRATOR.value:
-        return
-    if not target_reference:
-        raise HTTPException(status_code=403, detail="Cannot verify scope: missing target reference")
-
-    from app.models.encounter import EncounterModel
-    from app.models.organization import OrganizationClinicModel
-    target_org_id = None
-
-    encounter = db.query(EncounterModel).filter(EncounterModel.id == target_reference).first()
-    if encounter:
-        if encounter.clinic_id:
-            org = db.query(OrganizationClinicModel).filter(OrganizationClinicModel.id == encounter.clinic_id).first()
-            if org:
-                target_org_id = org.organization_id
-    else:
-        org = db.query(OrganizationClinicModel).filter(OrganizationClinicModel.id == target_reference).first()
-        if org:
-            target_org_id = org.organization_id
-
-    if not target_org_id:
-        raise HTTPException(status_code=403, detail="Cannot resolve authoritative target ownership")
-    if target_org_id != current_user.org_id:
-        raise HTTPException(status_code=403, detail="Target is outside user's governed scope")
+def get_signal_for_actor(db: Session, actor: User, signal_id: str):
+    from app.models.signal import SignalModel
+    q = db.query(SignalModel).filter(SignalModel.id == signal_id)
+    if actor.role != UserRole.SYSTEM_ADMINISTRATOR.value:
+        # Require org_id match for all normal users
+        q = q.filter(SignalModel.org_id == actor.org_id)
+        # Require clinic_id match if they are clinic-scoped (Front Desk, Clinic Manager)
+        if actor.role in [UserRole.FRONT_DESK.value, UserRole.CLINIC_MANAGER.value]:
+            if hasattr(actor, 'clinic_id') and actor.clinic_id:
+                q = q.filter(SignalModel.clinic_id == actor.clinic_id)
+            else:
+                # If they are clinic scoped but have no clinic_id, they can't access clinic signals
+                q = q.filter(SignalModel.clinic_id == "UNASSIGNED_FORCE_FAIL")
+    obj = q.first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Signal not found or out of scope")
+    return obj

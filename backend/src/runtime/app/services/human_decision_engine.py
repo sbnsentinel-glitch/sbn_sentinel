@@ -24,15 +24,20 @@ class HumanDecisionEngine(BaseService):
     def version(self) -> str:
         return "v1.0"
 
-    def _process(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _process(self, input_data: Any) -> Any:
+        return None
+
+    def record_decision(
+        self,
+        actor_id: str,
+        actor_role: str,
+        recommendation_id: str,
+        decision_type_str: str,
+        reason: str = None
+    ) -> Dict[str, Any]:
         """
         Takes decision attempt payload and returns either success or failure.
         """
-        actor_id = payload.get("actor_id")
-        actor_role = payload.get("actor_role")
-        recommendation_id = payload.get("recommendation_id")
-        decision_type_str = payload.get("decision_type")
-        reason = payload.get("reason")
         # Journey ID is extracted securely from the DB record later.
         # SESR-008: Reject client-provided journey_ids.
 

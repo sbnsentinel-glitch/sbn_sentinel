@@ -12,7 +12,7 @@ from app.core.email import send_email
 router = APIRouter()
 
 
-@router.get("", response_model=SettingsResponse)
+@router.get("", response_model=SettingsResponse, dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value, UserRole.FRONT_DESK.value, UserRole.READ_ONLY_AUDITOR.value]))])
 def get_settings(db: Session = Depends(get_db)):
     """
     Retrieve clinical settings. If none exist in the database,
@@ -68,10 +68,13 @@ def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)):
     return settings
 
 
-@router.get("/team")
-def get_team_members(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
-    """Retrieve all clinic users (except super admins)."""
-    users = db.query(User).filter(User.role != UserRole.SYSTEM_ADMINISTRATOR.value).all()
+@router.get("/team", dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value, UserRole.FRONT_DESK.value, UserRole.READ_ONLY_AUDITOR.value]))])
+def get_team_members(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> List[Dict[str, Any]]:
+    """Retrieve all clinic users in the same organization."""
+    query = db.query(User).filter(User.role != UserRole.SYSTEM_ADMINISTRATOR.value)
+    if current_user.role != UserRole.SYSTEM_ADMINISTRATOR.value:
+        query = query.filter(User.org_id == current_user.org_id)
+    users = query.all()
     return [
         {
             "id": str(u.id),
@@ -114,12 +117,17 @@ def invite_team_member(payload: Dict[str, Any], db: Session = Depends(get_db), c
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    target_org = current_user.org_id
+    if current_user.role == UserRole.SYSTEM_ADMINISTRATOR.value:
+        target_org = payload.get("org_id", "DEFAULT_ORG")
+
     new_user = User(
         email=email,
         full_name=name,
         role=role,
         hashed_password="",
-        is_active=False
+        is_active=False,
+        org_id=target_org
     )
     db.add(new_user)
 
@@ -176,6 +184,8 @@ def revoke_team_member(user_id: int, db: Session = Depends(get_db), current_user
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == UserRole.SYSTEM_ADMINISTRATOR.value:
         raise HTTPException(status_code=403, detail="Cannot revoke super admin")
+    if current_user.role != UserRole.SYSTEM_ADMINISTRATOR.value and user.org_id != current_user.org_id:
+        raise HTTPException(status_code=403, detail="Cannot revoke user outside your organization")
 
     hierarchy = {
         UserRole.SYSTEM_ADMINISTRATOR.value: 100,
@@ -195,8 +205,8 @@ def revoke_team_member(user_id: int, db: Session = Depends(get_db), current_user
     return {"message": "Access revoked successfully"}
 
 
-@router.get("/integrations")
-def get_integrations(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+@router.get("/integrations", dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value, UserRole.FRONT_DESK.value, UserRole.READ_ONLY_AUDITOR.value]))])
+def get_integrations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> List[Dict[str, Any]]:
     """Get clinic integrations status."""
     integrations = db.query(IntegrationModel).all()
 

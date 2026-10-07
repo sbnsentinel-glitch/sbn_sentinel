@@ -43,7 +43,10 @@ def mock_get_current_user():
 
 
 def mock_get_ordinary_user():
-    return User(id=2, email="user@sbnsentinel.com", role="Front Desk", is_active=True)
+    u = User(id=2, email="user@sbnsentinel.com", role="Organization Administrator", is_active=True)
+    u.org_id = "SYSTEM_GLOBAL"
+    u.clinic_id = None
+    return u
 
 
 @pytest.fixture
@@ -93,10 +96,12 @@ def test_d8_historical_chain_and_reproduction(client: TestClient, db_session: Se
 
     # Insert Historical V1 State
     try:
+        from app.models.signal import SignalModel
+        db_session.add(SignalModel(id=f"SIG-D8-{uid}", type="test_signal", org_id="SYSTEM_GLOBAL", metadata_data={}))
         db_session.add(EvidenceModel(evidence_id=f"EVID-{uid}", canonical_entity="patient", fact_key="status", fact_value_str="admitted", source_connector="emr", retrieval_timestamp=datetime.utcnow(), version=3))
         db_session.add(ContextEvidenceModel(context_id=ctx_id, id=f"EVID-{uid}", evidence_type="mock", evidence_value="test"))
         db_session.add(RuleEvaluationModel(evaluation_id=eval_id, decision_context_id=ctx_id, rule_id=rule_id, rule_version="V1", policy_id=pol_id, policy_version="V1", result="CONDITION_MET", evaluation_timestamp=datetime.utcnow().isoformat(), journey_id=jny_id, input_values_json='{}'))
-        db_session.add(RecommendationModel(recommendation_id=rec_id, decision_context_id=ctx_id, journey_id=jny_id, rule_evaluation_id=eval_id, mapping_id=map_id, mapping_version="V1", priority="High", content="Action V1", status="active", generated_at=datetime.utcnow().isoformat()))
+        db_session.add(RecommendationModel(recommendation_id=rec_id, decision_context_id=ctx_id, journey_id=jny_id, rule_evaluation_id=eval_id, mapping_id=map_id, mapping_version="V1", priority="High", content="Action V1", status="active", generated_at=datetime.utcnow().isoformat(), intended_target_reference=f"SIG-D8-{uid}"))
         db_session.add(HumanDecisionModel(decision_id=dec_id, recommendation_id=rec_id, journey_id=jny_id, actor_id="ACTOR", decision_type="APPROVED", status="RECORDED", decision_timestamp="2026-09-23T12:00:00Z"))
         db_session.add(OperationalActionModel(action_id=act_id, authorization_reference=dec_id, journey_id=jny_id, action_type="NOTIFY", target_reference="TGT", parameters_json='{}', status="COMPLETED"))
         db_session.add(ExecutionAttemptModel(attempt_id=att_id, action_id=act_id, journey_id=jny_id, attempt_number=1, result="SUCCESS"))
@@ -246,6 +251,8 @@ def test_d8_historical_chain_and_reproduction(client: TestClient, db_session: Se
         db_session.query(HumanDecisionModel).filter_by(decision_id=dec_id).delete()
         db_session.query(RecommendationModel).filter_by(recommendation_id=rec_id).delete()
         db_session.query(RecommendationModel).filter_by(recommendation_id=orphan_rec_id).delete()
+        from app.models.signal import SignalModel
+        db_session.query(SignalModel).filter_by(id=f"SIG-D8-{uid}").delete()
         db_session.query(RuleEvaluationModel).filter_by(evaluation_id=eval_id).delete()
         db_session.query(ContextEvidenceModel).filter_by(context_id=ctx_id).delete()
         db_session.query(EvidenceModel).filter_by(evidence_id=f"EVID-{uid}").delete()

@@ -5,7 +5,7 @@ from typing import Optional, Any
 from sqlalchemy.orm import Session
 from app.services.human_decision_engine import human_decision_engine
 from app.services.governance_registry import governance_registry
-from app.api.deps import get_current_user, verify_object_scope, get_db
+from app.api.deps import get_current_user, get_db
 from app.models.signal import SignalModel
 from app.models.governance_storage import RuleEvaluationModel, RecommendationModel, HumanDecisionModel
 
@@ -28,15 +28,13 @@ async def record_human_decision(
     SESR-005: Record a Governed Human Decision.
     Authority is extracted from current_user, not the request payload (ADG-023).
     """
-    payload = {
-        "actor_id": str(current_user.id),
-        "actor_role": current_user.role,
-        "recommendation_id": request.recommendation_id,
-        "decision_type": request.decision_type,
-        "reason": request.reason
-    }
-
-    result = human_decision_engine._process(payload)
+    result = human_decision_engine.record_decision(
+        actor_id=str(current_user.id),
+        actor_role=current_user.role,
+        recommendation_id=request.recommendation_id,
+        decision_type_str=request.decision_type,
+        reason=request.reason
+    )
 
     if result["status"] == "ERROR":
         raise HTTPException(
@@ -57,10 +55,10 @@ async def get_recommendation_review(
     """
     D5.0: Read contract for the Recommendation Review workspace.
     Returns authoritative Recommendation + current Human Decision based on exact Signal relationship.
+    Authorization resolved via get_signal_for_actor
     """
-    signal = db.query(SignalModel).filter(SignalModel.id == signal_id).first()
-    if signal and signal.primary_context:
-        verify_object_scope(db, current_user, signal.primary_context)
+    from app.api.deps import get_signal_for_actor
+    signal = get_signal_for_actor(db, current_user, signal_id)
 
     unavailable_resp = {
         "object_ref": {"object_type": "Signal", "object_id": signal_id},

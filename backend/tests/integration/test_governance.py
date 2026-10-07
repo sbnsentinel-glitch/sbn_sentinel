@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 
+
 client = TestClient(app)
 
 
@@ -309,7 +310,7 @@ def test_a022_synthetic_test_isolation():
 
 
 @pytest.mark.governance
-def test_e2e_authentic_journey():
+def test_e2e_authentic_journey(monkeypatch):
     """
     Audit 3 Item 20: Authentic, authenticated E2E journey test.
     """
@@ -342,6 +343,9 @@ def test_e2e_authentic_journey():
     assert res.status_code == 200, f"Login failed: {res.text}"
     token = res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+
+    from app.integrations.core.secrets import SigningKeyProvider
+    monkeypatch.setattr(SigningKeyProvider, "is_configured", lambda: True)
 
     # 2. Check Readiness Gate
     ready_res = client.get("/api/v1/health/ready", headers=headers)
@@ -489,7 +493,7 @@ def test_a025_restart_safe_persistence_and_continuity():
 
 
 @pytest.mark.governance
-def test_a026_readiness_gate_positive_and_negative():
+def test_a026_readiness_gate_positive_and_negative(monkeypatch):
     """
     Audit 4 Item 7: Test readiness gate positive case (200 OK with valid user, role, scope)
     and negative case (503 Service Unavailable when user lacks assigned operational role).
@@ -528,6 +532,9 @@ def test_a026_readiness_gate_positive_and_negative():
 
     db.add_all([u_active, u_unassigned, pf])
     db.commit()
+
+    from app.integrations.core.secrets import SigningKeyProvider
+    monkeypatch.setattr(SigningKeyProvider, "is_configured", lambda: True)
 
     try:
         # Positive case: valid active operational role -> 200
@@ -818,8 +825,7 @@ def test_a021b_reconstruction_missing_dependency():
 
 
 @pytest.mark.governance
-@pytest.mark.skip(reason="Bypassed for MVP")
-def test_a026b_practice_fusion_readiness():
+def test_a026b_practice_fusion_readiness(monkeypatch):
     """
     Audit 4 Item 7: Practice Fusion Readiness
     - No PF ConnectorModel in DB -> 503, pf=false
@@ -853,6 +859,9 @@ def test_a026b_practice_fusion_readiness():
     )
     db.add(u_admin)
     db.commit()
+
+    from app.integrations.core.secrets import SigningKeyProvider
+    monkeypatch.setattr(SigningKeyProvider, "is_configured", lambda: True)
 
     try:
         # Get auth token

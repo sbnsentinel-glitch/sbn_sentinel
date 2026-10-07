@@ -21,7 +21,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, index=True)
-    role = Column(String, default=UserRole.ORGANIZATION_ADMINISTRATOR.value)
+    role = Column(String, default=UserRole.UNASSIGNED.value)
     org_id = Column(String, nullable=True)  # Scope context
     is_active = Column(Boolean, default=True)
     token_invalid_before = Column(DateTime(timezone=True), nullable=True)

@@ -109,18 +109,33 @@ def readiness_gate(
     ]
     role_ok = bool(current_user and getattr(current_user, "role", None) in allowed_operational_roles)
 
-    # 4. Scope Check (System Admin has global scope; clinic-scoped roles require org_id and clinic_id; other roles require org_id)
-    scope_ok = True  # Temporarily bypassed for MVP
+    # 4. Scope Check
+    if getattr(current_user, "role", None) == UserRole.SYSTEM_ADMINISTRATOR.value:
+        scope_ok = True
+    elif getattr(current_user, "role", None) == UserRole.FRONT_DESK.value:
+        scope_ok = bool(getattr(current_user, "org_id", None) and getattr(current_user, "clinic_id", None))
+    else:
+        scope_ok = bool(getattr(current_user, "org_id", None))
 
     # 5. Governance Registry Check
-    governance_ok = True  # Temporarily bypassed for MVP
+    try:
+        from app.services.governance_registry import governance_registry
+        governance_ok = bool(governance_registry is not None)
+    except Exception as e:
+        logger.error(f"[Readiness] Governance registry check failed: {e}")
+        governance_ok = False
 
     # 6. Configuration Check
     from app.core.config import settings
     config_ok = bool(getattr(settings, "ENVIRONMENT", None))
 
     # 7. Practice Fusion Connector Readiness Check
-    pf_ok = True  # Temporarily bypassed for MVP
+    try:
+        from app.services.connector_manager import connector_manager
+        pf_ok = connector_manager.is_ready("PRACTICE_FUSION")
+    except Exception as e:
+        logger.error(f"[Readiness] PF check failed: {e}")
+        pf_ok = False
 
     # 8. Processing Services Readiness Check
     try:

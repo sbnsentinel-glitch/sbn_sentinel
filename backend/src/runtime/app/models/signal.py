@@ -10,6 +10,8 @@ class SignalModel(Base):
     type = Column(String, index=True)
     message = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    org_id = Column(String, index=True, nullable=True)
+    clinic_id = Column(String, index=True, nullable=True)
     metadata_data = Column(JSON, nullable=True)
     risk_level = Column(String, nullable=True)
     problem = Column(String, nullable=True)

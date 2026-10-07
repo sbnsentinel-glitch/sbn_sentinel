@@ -4,7 +4,7 @@ from typing import Dict, Any
 
 from app.db.database import get_db
 
-from app.api.deps import get_current_user, get_scoped_user, verify_object_scope
+from app.api.deps import get_current_user, get_scoped_user, get_signal_for_actor
 from app.models.user import User, UserRole
 from app.models.governance_storage import (
     RecommendationModel,
@@ -34,9 +34,11 @@ def get_historical_recommendation(
     if not rec:
         raise HTTPException(status_code=404, detail="Recommendation not found")
 
-    # Scope check only if the recommendation has a known target reference
-    if rec.intended_target_reference:
-        verify_object_scope(db, current_user, rec.intended_target_reference)
+    # Missing or unresolvable ownership must deny access for ordinary users
+    if current_user.role != UserRole.SYSTEM_ADMINISTRATOR.value:
+        if not rec.intended_target_reference:
+            raise HTTPException(status_code=403, detail="Missing intended target reference denies access")
+        get_signal_for_actor(db, current_user, rec.intended_target_reference)
     return _build_historical_lifecycle(rec, db)
 
 
@@ -53,7 +55,10 @@ def get_historical_journey(
     if not recs:
         raise HTTPException(status_code=404, detail="No historical records found for journey")
 
-    verify_object_scope(db, current_user, recs[0].intended_target_reference)
+    if current_user.role != UserRole.SYSTEM_ADMINISTRATOR.value:
+        if not recs[0].intended_target_reference:
+            raise HTTPException(status_code=403, detail="Missing intended target reference denies access")
+        get_signal_for_actor(db, current_user, recs[0].intended_target_reference)
 
     # If ambiguous (multiple recommendations), the spec says:
     # "Multiple historical recommendations + journey-only request => ambiguous, not arbitrary selection."
@@ -85,9 +90,11 @@ def get_reproduction(
     rec = db.query(RecommendationModel).filter(RecommendationModel.recommendation_id == recommendation_id).first()
     if not rec:
         raise HTTPException(status_code=404, detail="Recommendation not found")
-    # Scope check only if there is a known target reference
-    if rec.intended_target_reference:
-        verify_object_scope(db, current_user, rec.intended_target_reference)
+    # Missing or unresolvable ownership must deny access for ordinary users
+    if current_user.role != UserRole.SYSTEM_ADMINISTRATOR.value:
+        if not rec.intended_target_reference:
+            raise HTTPException(status_code=403, detail="Missing intended target reference denies access")
+        get_signal_for_actor(db, current_user, rec.intended_target_reference)
 
     # Call reconstruction engine
     result = reconstruction_engine.reproduce_decision(recommendation_id)

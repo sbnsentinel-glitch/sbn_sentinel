@@ -69,7 +69,6 @@ def register_user(user_in: RegisterVerifyRequest, db: Session = Depends(get_db))
     from app.models.otp import OTPModel
     otp_record = db.query(OTPModel).filter(
         OTPModel.email == user_in.email,
-        OTPModel.otp_code == user_in.otp,
         OTPModel.purpose == "signup",
         OTPModel.is_used == False  # noqa: E712
     ).order_by(OTPModel.created_at.desc()).first()
@@ -83,11 +82,10 @@ def register_user(user_in: RegisterVerifyRequest, db: Session = Depends(get_db))
         db.commit()
         raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
 
-    otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
-    if otp_record.attempts > 3:
-        otp_record.is_used = True
+    import hmac
+    if not hmac.compare_digest(otp_record.otp_code, user_in.otp):
         db.commit()
-        raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     from app.models.user import UserRole
     # Map frontend role to backend UserRole
@@ -195,7 +193,6 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
     from app.models.otp import OTPModel
     otp_record = db.query(OTPModel).filter(
         OTPModel.email == payload.email,
-        OTPModel.otp_code == payload.otp,
         OTPModel.purpose == "reset_password",
         OTPModel.is_used == False  # noqa: E712
     ).order_by(OTPModel.created_at.desc()).first()
@@ -209,17 +206,17 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
         db.commit()
         raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
 
-    otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
-    if otp_record.attempts > 3:
-        otp_record.is_used = True
+    import hmac
+    if not hmac.compare_digest(otp_record.otp_code, payload.otp):
         db.commit()
-        raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
 
     user.hashed_password = get_password_hash(payload.new_password)
+    user.token_invalid_before = datetime.utcnow()
     otp_record.is_used = True
     db.commit()
     return {"message": "Password has been successfully reset."}
@@ -230,7 +227,6 @@ def accept_invite(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     from app.models.otp import OTPModel
     otp_record = db.query(OTPModel).filter(
         OTPModel.email == payload.email,
-        OTPModel.otp_code == payload.otp,
         OTPModel.purpose == "invite",
         OTPModel.is_used == False  # noqa: E712
     ).order_by(OTPModel.created_at.desc()).first()
@@ -244,11 +240,10 @@ def accept_invite(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
         db.commit()
         raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
 
-    otp_record.attempts = getattr(otp_record, 'attempts', 0) + 1
-    if otp_record.attempts > 3:
-        otp_record.is_used = True
+    import hmac
+    if not hmac.compare_digest(otp_record.otp_code, payload.otp):
         db.commit()
-        raise HTTPException(status_code=400, detail="Maximum OTP attempts exceeded. Please request a new one.")
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:

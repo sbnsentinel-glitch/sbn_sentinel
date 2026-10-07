@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     # Runtime database URL — overrides the default SQLite dev URL.
     # In production set: SQLALCHEMY_DATABASE_URL=postgresql://user:pass@host/db
     SQLALCHEMY_DATABASE_URL: str = "sqlite:///./sentinel.db"
+    
+    ALLOWED_WS_ORIGINS: list[str] = ["http://localhost:3000", "https://sbnsentinel.com"]
 
     @model_validator(mode='after')
     def validate_sesr012_config(self) -> 'Settings':

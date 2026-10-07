@@ -62,6 +62,7 @@ def test_d5_recommendation_review_endpoint_exact_match(setup_db, mock_admin):
     sig = SignalModel(
         id=signal_id,
         type="test_signal",
+        org_id="SYSTEM_GLOBAL",
         metadata_data={"pipeline_event_id": event_id, "correlation_id": correlation_id}
     )
     db.add(sig)
@@ -139,7 +140,7 @@ def test_d5_recommendation_ambiguity(setup_db, mock_admin):
     signal_id = str(uuid.uuid4())
     correlation_id = str(uuid.uuid4())
 
-    sig = SignalModel(id=signal_id, type="test_signal", metadata_data={"correlation_id": correlation_id})
+    sig = SignalModel(id=signal_id, type="test_signal", org_id="SYSTEM_GLOBAL", metadata_data={"correlation_id": correlation_id})
     db.add(sig)
 
     # Add two rule evaluations and two recommendations for the same journey
@@ -174,7 +175,7 @@ def test_d5_recommendation_lifecycle_expired(setup_db, mock_admin):
     signal_id = str(uuid.uuid4())
     correlation_id = str(uuid.uuid4())
 
-    db.add(SignalModel(id=signal_id, type="test_signal", metadata_data={"correlation_id": correlation_id}))
+    db.add(SignalModel(id=signal_id, type="test_signal", org_id="SYSTEM_GLOBAL", metadata_data={"correlation_id": correlation_id}))
 
     eval_id = str(uuid.uuid4())
     db.add(RuleEvaluationModel(
@@ -214,6 +215,7 @@ def test_d5_restart_safe_duplicate_decision_prevention(setup_db, mock_admin):
     db.add(SignalModel(
         id=signal_id,
         type="test_signal",
+        org_id="SYSTEM_GLOBAL",
         metadata_data={"correlation_id": correlation_id}
     ))
     db.add(RuleEvaluationModel(
@@ -292,6 +294,7 @@ def test_d5_authority_states_separation(setup_db, monkeypatch):
     db.add(SignalModel(
         id=signal_id,
         type="test_signal",
+        org_id="UNASSIGNED",
         metadata_data={"correlation_id": correlation_id}
     ))
     db.add(RuleEvaluationModel(
@@ -373,6 +376,7 @@ def test_d5_no_signal_recommendation_fallback(setup_db, mock_admin):
     sig = SignalModel(
         id=signal_id,
         type="test_signal",
+        org_id="SYSTEM_GLOBAL",
         recommended_action="Legacy Fallback Action",
         metadata_data={"correlation_id": correlation_id}
     )
