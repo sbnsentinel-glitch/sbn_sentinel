@@ -79,6 +79,7 @@ async def chat_assistant(request: ChatRequest):
             # Fallback to local assistant if OpenAI API call fails
             pass
     # 2. Local heuristic fallback responder (context-aware & extremely robust)
+    active_patient = ctx.get("active_patient", "None selected")
     reply_text = ""
     if "hi" in message or "hello" in message or "hey" in message:
         reply_text = (
