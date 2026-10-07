@@ -81,6 +81,12 @@ class ContextFreshnessModel(Base):
     )
 
 
+class ContextProvenanceModel(Base):
+    """
+    AIS-002: Tracks the origin/source of the evidence.
+    """
+    __tablename__ = "dce_context_provenance"
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     context_id = Column(String, nullable=False, index=True)
     evidence_id = Column(String, nullable=False)
