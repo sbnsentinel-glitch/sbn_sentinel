@@ -130,7 +130,7 @@ class ReconstructionEngine:
             # 3a. Reproduce Rule Logic (isolated context)
 
             import json
-            
+
             if not eval_record.input_values_json:
                 return ReproductionResult(
                     status="NOT_REPRODUCIBLE",
@@ -141,7 +141,7 @@ class ReconstructionEngine:
                     diagnostic_stage="historical_logic",
                     diagnostic_code="MISSING_INPUTS"
                 )
-                
+
             try:
                 inputs = json.loads(eval_record.input_values_json)
             except json.JSONDecodeError:
@@ -164,7 +164,7 @@ class ReconstructionEngine:
             except Exception as e:
                 logger.error(f"Rule reproduction failed: {e}")
                 rule_result = "NOT_EVALUABLE"
-                
+
             if rule_result == "NOT_EVALUABLE":
                 return ReproductionResult(
                     status="NOT_REPRODUCIBLE",

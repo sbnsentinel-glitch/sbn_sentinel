@@ -125,7 +125,7 @@ class OperationalOutcomeEngine(BaseService):
         closed_at = None
 
         from app.services.governance_registry import ActionStatus
-        
+
         if confirmation_state == OutcomeConfirmationState.CONFIRMED and action.status == ActionStatus.COMPLETED:
             resolution_state = OutcomeResolutionState.RESOLVED
             closure_reason = "SUCCESS_CONFIRMED"

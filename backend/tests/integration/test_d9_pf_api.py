@@ -119,8 +119,8 @@ async def test_pf01_smart_discovery(mock_encode, pf_config):
     adapter = PracticeFusionAdapter(auth=None, manifest=manifest, config=pf_config)
 
     with patch("app.services.ingress_service.CanonicalIngressService.submit_batch", new_callable=AsyncMock) as mock_ingest, \
-         patch("app.services.cursor_store.CursorStore.get", return_value=None), \
-         patch("app.services.cursor_store.CursorStore.commit"):
+            patch("app.services.cursor_store.CursorStore.get", return_value=None), \
+            patch("app.services.cursor_store.CursorStore.commit"):
         mock_ingest.return_value = {"processed": 1}
         result = await adapter.sync()
 

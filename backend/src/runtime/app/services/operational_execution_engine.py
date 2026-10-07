@@ -228,7 +228,7 @@ class OperationalExecutionEngine(BaseService):
         from app.db.database import SessionLocal
         from app.models.encounter import EncounterModel
         from app.models.organization import OrganizationClinicModel
-        
+
         db = SessionLocal()
         try:
             target_exists = False
@@ -238,12 +238,12 @@ class OperationalExecutionEngine(BaseService):
                     if action.target_reference.endswith(postfix):
                         base_target = action.target_reference[:-len(postfix)]
                         break
-            
+
             if db.query(EncounterModel).filter(EncounterModel.id == base_target).first():
                 target_exists = True
             elif db.query(OrganizationClinicModel).filter(OrganizationClinicModel.id == base_target).first():
                 target_exists = True
-                
+
             if not target_exists:
                 return {"eligible": False, "reason": "TARGET_NOT_FOUND_OR_UNSUPPORTED"}
         finally:
@@ -351,7 +351,7 @@ class OperationalExecutionEngine(BaseService):
             }
         elif target.endswith("-UNKNOWN"):
             return {
-                "result": ExecutionResult.UNKNOWN, 
+                "result": ExecutionResult.UNKNOWN,
                 "error": "CONNECTION_TIMEOUT",
                 "message": "Connection lost before response was received."
             }

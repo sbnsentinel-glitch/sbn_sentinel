@@ -113,7 +113,7 @@ class RulesEngine(BaseService):
 
     def _execute_rule_logic(self, rule: RuleVersion, inputs: Dict[str, Any]) -> str:
         """Deterministically evaluates rule conditions."""
-        
+
         def eval_sch_001_v1(inputs: Dict[str, Any]) -> str:
             if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Provider Schedule Gap":
                 return "CONDITION_MET"
@@ -138,7 +138,7 @@ class RulesEngine(BaseService):
         handler = RULE_HANDLERS.get((rule.rule_id, rule.version))
         if not handler:
             return "NOT_EVALUABLE"
-        
+
         return handler(inputs)
 
 

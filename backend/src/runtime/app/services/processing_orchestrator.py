@@ -451,8 +451,8 @@ class ProcessingOrchestrator:
                 first_finding = active_findings[0]
                 event.rule_findings = [RuleFindingModel(
                     rule_id=first_finding.get("rule_id", "Unknown"),
-                    severity=first_finding.get("result", "Information"), # For DB compatibility
-                    description=first_finding.get("result", ""), # Temporarily store exact result
+                    severity=first_finding.get("result", "Information"),  # For DB compatibility
+                    description=first_finding.get("result", ""),  # Temporarily store exact result
                     evaluation_id=first_finding.get("evaluation_id", "UNKNOWN_EVALUATION")
                 )]
                 event.rule_version = first_finding.get("rule_version", "Unknown")
@@ -474,6 +474,7 @@ class ProcessingOrchestrator:
     def _layer7_intelligence(self, event: OperationalEventModel, db) -> OperationalEventModel:
         """
         Takes objective rule findings and generates executive recommendations.
+        """
         t_start = time.time()
         try:
             request = ServiceRequest(
@@ -485,7 +486,7 @@ class ProcessingOrchestrator:
                         {
                             "rule_id": rf.rule_id,
                             "severity": rf.severity,
-                            "result": rf.description, # F-11: recover exact result
+                            "result": rf.description,  # F-11: recover exact result
                             "evaluation_id": rf.evaluation_id} for rf in event.rule_findings] if event.rule_findings else [],
                     "context": {
                         "id": event.decision_context.id,
@@ -710,10 +711,8 @@ class ProcessingOrchestrator:
         category: str = None,
         severity: str = None
     ) -> OperationalEventModel:
-        """
-        Records failure state with layer origin and error message.
-        Implements SES-009 Degraded Operations and SES-007 transient/non-transient rules.
-        """
+        # Records failure state with layer origin and error message.
+        # Implements SES-009 Degraded Operations and SES-007 transient/non-transient rules.
         if isinstance(error, Exception):
             error_str = str(error)
             if isinstance(error, InputValidationError):
@@ -797,7 +796,7 @@ class ProcessingOrchestrator:
     def get_event_trace(self, event_id: str) -> Optional[Dict[str, Any]]:
         """
         Returns the full processing trace for a given event.
-        Includes per-layer timing, state, and all outputs via relationships.
+        Includes per - layer timing, state, and all outputs via relationships.
         """
         db = SessionLocal()
         try:
@@ -844,10 +843,8 @@ class ProcessingOrchestrator:
             db.close()
 
     def _persist_context_evidence_records(self, event: OperationalEventModel, pkg: dict, db) -> None:
-        """
-        D4 Authoritative Persistence: Persists context evidence, provenance, freshness,
-        missing, and conflict records bound directly to the event's decision context ID.
-        """
+        # D4 Authoritative Persistence: Persists context evidence, provenance, freshness,
+        # missing, and conflict records bound directly to the event's decision context ID.
         try:
             from app.models.decision_context_models import (
                 ContextEvidenceModel,

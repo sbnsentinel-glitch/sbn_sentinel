@@ -865,7 +865,7 @@ def test_a026b_practice_fusion_readiness(monkeypatch):
 
     try:
         from app.services.connector_manager import connector_runtime_state, ConnectorRuntimeStateDTO
-        
+
         # Get auth token
         res = local_client.post("/api/v1/auth/login", json={"email": admin_email, "password": "Test@123"})
         token = res.json()["access_token"]

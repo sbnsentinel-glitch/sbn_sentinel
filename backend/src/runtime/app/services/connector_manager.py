@@ -1,5 +1,7 @@
+from pydantic import BaseModel
+from typing import Literal, Optional, Dict
 import logging
-from typing import Dict, Any
+from typing import Any
 from datetime import datetime
 
 from app.db.database import SessionLocal
@@ -94,24 +96,23 @@ class ConnectorManager:
         state = connector_runtime_state.get(connector_name)
         return state.capability_state == "AUTHORIZED_READY" and not state.is_stale
 
-from pydantic import BaseModel
-from typing import Literal, Optional, Dict
-from datetime import datetime
 
 class ConnectorRuntimeStateDTO(BaseModel):
     capability_state: Literal["CONFIGURED", "AUTH_VERIFIED", "AUTHORIZED_READY", "DEGRADED", "STALE", "UNCONFIGURED"]
     is_stale: bool
     last_verified_at: Optional[datetime] = None
 
+
 class ConnectorRuntimeStateManager:
     def __init__(self):
         self._states: Dict[str, ConnectorRuntimeStateDTO] = {}
-        
+
     def get(self, name: str) -> ConnectorRuntimeStateDTO:
         return self._states.get(name, ConnectorRuntimeStateDTO(capability_state="UNCONFIGURED", is_stale=True))
-        
+
     def set(self, name: str, state: ConnectorRuntimeStateDTO):
         self._states[name] = state
+
 
 connector_runtime_state = ConnectorRuntimeStateManager()
 connector_manager = ConnectorManager()

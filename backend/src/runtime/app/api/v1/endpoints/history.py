@@ -132,7 +132,7 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
     decision_context_id = rec.decision_context_id
     evidence_refs = []
     errors = []
-    
+
     if not decision_context_id:
         errors.append("missing_context")
     else:

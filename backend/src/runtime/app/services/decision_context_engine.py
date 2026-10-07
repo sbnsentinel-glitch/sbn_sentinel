@@ -170,11 +170,11 @@ class DecisionContextEngine(BaseService):
 
         new_package = builder.build(event_type, evidence_items)
         validated = validator.validate(new_package)
-        
+
         # F-12: Hard gate
         if hasattr(validated, "is_valid") and not validated.is_valid:
             raise DecisionContextInvalid(getattr(validated, "errors", "Validation failed"))
-            
+
         serialized_package = serializer.serialize(validated)
 
         # Inject AIS-002 Package into the legacy response to avoid breaking downstream
