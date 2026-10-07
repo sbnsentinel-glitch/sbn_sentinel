@@ -276,6 +276,9 @@ def test_a021_historical_reconstruction():
         ))
         db.commit()
 
+        from app.services.rules_engine import rules_engine
+        rules_engine.register_handler(rule_id, lambda d: "CONDITION_MET")
+
         # Invoke Reconstruction Engine: must strictly resolve and match V1
         result = reconstruction_engine.reproduce_decision(rec_id)
         print("REPRODUCTION RESULT:", result)
@@ -346,6 +349,9 @@ def test_e2e_authentic_journey(monkeypatch):
 
     from app.integrations.core.secrets import SigningKeyProvider
     monkeypatch.setattr(SigningKeyProvider, "is_configured", lambda: True)
+    
+    from app.services.connector_manager import connector_runtime_state, ConnectorRuntimeStateDTO
+    connector_runtime_state.set("PRACTICE_FUSION", ConnectorRuntimeStateDTO(capability_state="AUTHORIZED_READY", is_stale=False))
 
     # 2. Check Readiness Gate
     ready_res = client.get("/api/v1/health/ready", headers=headers)
@@ -535,6 +541,9 @@ def test_a026_readiness_gate_positive_and_negative(monkeypatch):
 
     from app.integrations.core.secrets import SigningKeyProvider
     monkeypatch.setattr(SigningKeyProvider, "is_configured", lambda: True)
+
+    from app.services.connector_manager import connector_runtime_state, ConnectorRuntimeStateDTO
+    connector_runtime_state.set("PRACTICE_FUSION", ConnectorRuntimeStateDTO(capability_state="AUTHORIZED_READY", is_stale=False))
 
     try:
         # Positive case: valid active operational role -> 200

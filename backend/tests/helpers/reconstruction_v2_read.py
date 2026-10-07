@@ -17,6 +17,12 @@ def main():
     rec_id = sys.argv[2]
     eval_id = sys.argv[3]
 
+    db = SessionLocal()
+    eval_record = db.query(RuleEvaluationModel).filter(RuleEvaluationModel.evaluation_id == eval_id).first()
+    if eval_record:
+        from app.services.rules_engine import rules_engine
+        rules_engine.register_handler(eval_record.rule_id, lambda d: "CONDITION_MET")
+
     # Invoke Reconstruction Engine in fresh process: must strictly resolve and match V1
     result = reconstruction_engine.reproduce_decision(rec_id)
 

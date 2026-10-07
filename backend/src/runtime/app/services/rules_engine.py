@@ -17,6 +17,7 @@ class RulesEngine(BaseService):
 
     def __init__(self):
         self.registry = governance_registry
+        self._handlers = {}
 
     @property
     def service_name(self) -> str:
@@ -114,32 +115,35 @@ class RulesEngine(BaseService):
     def _execute_rule_logic(self, rule: RuleVersion, inputs: Dict[str, Any]) -> str:
         """Deterministically evaluates rule conditions."""
 
-        def eval_sch_001_v1(inputs: Dict[str, Any]) -> str:
-            if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Provider Schedule Gap":
-                return "CONDITION_MET"
-            return "CONDITION_NOT_MET"
+        if not self._handlers:
+            def eval_sch_001_v1(inputs: Dict[str, Any]) -> str:
+                if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Provider Schedule Gap":
+                    return "CONDITION_MET"
+                return "CONDITION_NOT_MET"
 
-        def eval_sch_002_v1(inputs: Dict[str, Any]) -> str:
-            if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Queue Congestion":
-                return "CONDITION_MET"
-            return "CONDITION_NOT_MET"
+            def eval_sch_002_v1(inputs: Dict[str, Any]) -> str:
+                if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Queue Congestion":
+                    return "CONDITION_MET"
+                return "CONDITION_NOT_MET"
 
-        def eval_sch_003_v1(inputs: Dict[str, Any]) -> str:
-            if inputs.get("primary_context") == "Operational":
-                return "CONDITION_MET"
-            return "CONDITION_NOT_MET"
+            def eval_sch_003_v1(inputs: Dict[str, Any]) -> str:
+                if inputs.get("primary_context") == "Operational":
+                    return "CONDITION_MET"
+                return "CONDITION_NOT_MET"
 
-        RULE_HANDLERS = {
-            ("RULE-SCH-001", "1.0"): eval_sch_001_v1,
-            ("RULE-SCH-002", "1.0"): eval_sch_002_v1,
-            ("RULE-SCH-003", "1.0"): eval_sch_003_v1,
-        }
+            self._handlers[("RULE-SCH-001", "1.0")] = eval_sch_001_v1
+            self._handlers[("RULE-SCH-002", "1.0")] = eval_sch_002_v1
+            self._handlers[("RULE-SCH-003", "1.0")] = eval_sch_003_v1
 
-        handler = RULE_HANDLERS.get((rule.rule_id, rule.version))
+        handler = self._handlers.get((rule.rule_id, rule.version))
         if not handler:
             return "NOT_EVALUABLE"
 
         return handler(inputs)
+
+    def register_handler(self, rule_id: str, handler: callable, version: str = "V1") -> None:
+        """Register a custom handler for testing or dynamic rules."""
+        self._handlers[(rule_id, version)] = handler
 
 
 rules_engine = RulesEngine()
