@@ -138,7 +138,7 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
     else:
         evidence_records = db.query(ContextEvidenceModel).filter(ContextEvidenceModel.context_id == decision_context_id).all()
         for ev in evidence_records:
-            evidence = db.query(EvidenceModel).filter(EvidenceModel.evidence_id == ev.evidence_id).all()
+            evidence = db.query(EvidenceModel).filter(EvidenceModel.evidence_id == ev.id).all()
             if len(evidence) > 1:
                 errors.append("ambiguous_evidence")
             elif len(evidence) == 1:
@@ -165,7 +165,7 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
                 "rule_version": rule_eval.rule_version,
                 "policy_id": rule_eval.policy_id,
                 "policy_version": rule_eval.policy_version,
-                "evaluated_at": rule_eval.evaluation_timestamp.isoformat() + "Z" if rule_eval.evaluation_timestamp else None
+                "evaluated_at": rule_eval.evaluation_timestamp.isoformat() + "Z" if hasattr(rule_eval.evaluation_timestamp, "isoformat") else (str(rule_eval.evaluation_timestamp) + ("Z" if not str(rule_eval.evaluation_timestamp).endswith("Z") else "")) if rule_eval.evaluation_timestamp else None
             })
             policy = {
                 "policy_id": rule_eval.policy_id,
