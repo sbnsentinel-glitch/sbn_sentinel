@@ -112,12 +112,14 @@ def invite_clinic_user(payload: Dict[str, Any], db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="User with this email already exists")
 
+    import uuid
     new_user = User(
         email=email,
         hashed_password=get_password_hash(temp_password),
         full_name=f"{clinic_name} - {full_name}",
         role=role,
-        is_active=True
+        is_active=True,
+        org_id=f"org_{uuid.uuid4().hex[:8]}"
     )
     db.add(new_user)
     db.commit()

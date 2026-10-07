@@ -18,26 +18,7 @@ def get_settings(db: Session = Depends(get_db)):
     """
     settings = db.query(SettingsModel).first()
     if not settings:
-        return SettingsModel(
-            practice_name="Sentinel Health Urgent Care",
-            practice_phone="(555) 019-2834",
-            timezone="Eastern Time (US & Canada)",
-            open_time="08:00",
-            close_time="20:00",
-            language="en",
-            theme_mode="system",
-            scheduling_aggressiveness=2,
-            auto_outreach=True,
-            confidence_threshold="85% (Recommended)",
-            ai_model="gpt-4o",
-            notify_sms=True,
-            notify_email=False,
-            notify_desktop=True,
-            notify_copay=True,
-            reminder_interval="24h",
-            active_plan="professional",
-            payment_card="Visa ending in 4242"
-        )
+        raise HTTPException(status_code=404, detail="Settings not configured")
     return settings
 
 
