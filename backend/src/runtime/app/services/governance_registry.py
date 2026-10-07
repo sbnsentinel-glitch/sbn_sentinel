@@ -123,6 +123,7 @@ class AuthorityRequirement(Enum):
     INFORMATIONAL = "INFORMATIONAL"
     REVIEW_REQUIRED = "REVIEW_REQUIRED"
     APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+    UNAVAILABLE = "UNAVAILABLE"
 
 
 @dataclass(frozen=True)
@@ -592,7 +593,7 @@ class GovernanceRegistry:
                     rule_evaluation_id=db_record.rule_evaluation_id,
                     recommendation_content=db_record.content,
                     status=RecommendationStatus(db_record.status),
-                    authority_requirement=AuthorityRequirement(db_record.authority_requirement) if getattr(db_record, "authority_requirement", None) else AuthorityRequirement.INFORMATIONAL,
+                    authority_requirement=AuthorityRequirement(db_record.authority_requirement) if getattr(db_record, "authority_requirement", None) else AuthorityRequirement.UNAVAILABLE,
                     priority=db_record.priority,
                     generated_at=parse(db_record.generated_at),
                     journey_id=db_record.journey_id,
@@ -1268,7 +1269,7 @@ class GovernanceRegistry:
             if row:
                 eff_from = parse(row.effective_from) if row.effective_from else None
                 cr_at = parse(row.created_at) if row.created_at else datetime.utcnow()
-                ar = AuthorityRequirement(row.authority_requirement) if row.authority_requirement in [e.value for e in AuthorityRequirement] else AuthorityRequirement.INFORMATIONAL
+                ar = AuthorityRequirement(row.authority_requirement) if row.authority_requirement in [e.value for e in AuthorityRequirement] else AuthorityRequirement.UNAVAILABLE
                 ls = LifecycleState(row.lifecycle_state) if row.lifecycle_state in [e.value for e in LifecycleState] else LifecycleState.ACTIVE
                 return RecommendationMapping(
                     mapping_id=row.mapping_id,

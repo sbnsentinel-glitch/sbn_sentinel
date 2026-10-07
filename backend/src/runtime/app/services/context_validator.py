@@ -42,7 +42,9 @@ class ContextValidator:
                 "retrieval_status",
                 None) == "FAILED" for ev in context_package["evidence"]["used"])
 
-        if len(missing) > 0 or len(conflicts) > 0 or freshness.get("is_stale") or has_retrieval_failure:
+        if len(missing) > 0 or has_retrieval_failure:
+            context_package["governance"]["sufficiency_status"] = "PENDING_EVIDENCE"
+        elif len(conflicts) > 0 or freshness.get("is_stale"):
             context_package["governance"]["sufficiency_status"] = "INSUFFICIENT"
             # AIS-002: "Incomplete contexts should still be generated but clearly marked."
         else:

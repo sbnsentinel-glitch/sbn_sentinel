@@ -89,6 +89,25 @@ class ProcessingOrchestrator:
         """
         db = SessionLocal()
         try:
+            # F-23: Resume logic for PENDING_EVIDENCE
+            if correlation_id:
+                existing_event = db.query(OperationalEventModel).filter(
+                    OperationalEventModel.correlation_id == correlation_id,
+                    OperationalEventModel.state == "PendingEvidence"
+                ).first()
+                if existing_event:
+                    # Merge new payload and resume
+                    if isinstance(existing_event.raw_payload, dict) and isinstance(raw_payload, dict):
+                        existing_event.raw_payload = {**existing_event.raw_payload, **raw_payload}
+                    sste.execute_transition(existing_event, "OperationalEvent", "Queued")
+                    db.commit()
+                    db.refresh(existing_event)
+                    self.logger.info(
+                        f"[SES-009][PIPELINE] Event {existing_event.id} RESUMED | "
+                        f"correlation_id={correlation_id}"
+                    )
+                    return existing_event
+
             event = OperationalEventModel(
                 id=str(uuid.uuid4()),
                 correlation_id=correlation_id or str(uuid.uuid4()),
@@ -165,6 +184,12 @@ class ProcessingOrchestrator:
             # ── Layer 4: Decision Context Engine ──────────────────────
             event = self._layer4_context(event, db)
             if event.state != "Processing":
+                return event
+                
+            if event.decision_context and event.decision_context.sufficiency_status == "PENDING_EVIDENCE":
+                sste.execute_transition(event, "OperationalEvent", "PendingEvidence")
+                db.commit()
+                self.logger.info(f"Pipeline paused for event {event.id} waiting for missing evidence.")
                 return event
 
             # ── Layer 5: Policy Engine (Governance) ─────────────────────

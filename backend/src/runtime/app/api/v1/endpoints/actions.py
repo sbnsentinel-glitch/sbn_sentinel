@@ -74,9 +74,7 @@ async def create_operational_action(
         existing = (
             db.query(OperationalActionModel)
             .filter(
-                OperationalActionModel.authorization_reference == request.decision_id,
-                OperationalActionModel.action_type == request.action_type,
-                OperationalActionModel.target_reference == request.target_reference,
+                OperationalActionModel.authorization_reference == request.decision_id
             )
             .filter(OperationalActionModel.status.notin_(["CANCELLED", "EXPIRED"]))
             .with_for_update()

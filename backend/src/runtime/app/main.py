@@ -11,7 +11,9 @@ from app.models.user import User, UserRole
 from app.models.otp import OTPModel  # noqa
 
 # Create tables in SQLite/PostgreSQL (if they don't exist)
-Base.metadata.create_all(bind=engine)
+# F-28: Transitioned to Alembic migrations.
+# Run migrations via `alembic upgrade head` instead of create_all()
+# Base.metadata.create_all(bind=engine)
 
 # SES-010: Initialize structured JSON logging for observability
 setup_logging(settings.LOG_LEVEL if hasattr(settings, "LOG_LEVEL") else "INFO")

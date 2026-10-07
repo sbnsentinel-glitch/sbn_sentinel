@@ -12,15 +12,14 @@ from app.core.email import send_email
 router = APIRouter()
 
 
-@router.get("", response_model=SettingsResponse, dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value, UserRole.FRONT_DESK.value, UserRole.READ_ONLY_AUDITOR.value]))])
+@router.get("", response_model=SettingsResponse, dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value]))])
 def get_settings(db: Session = Depends(get_db)):
     """
-    Retrieve clinical settings. If none exist in the database,
-    initialize and return default settings.
+    Retrieve clinical settings. Return default if none exists, but do not write to DB.
     """
     settings = db.query(SettingsModel).first()
     if not settings:
-        settings = SettingsModel(
+        return SettingsModel(
             practice_name="Sentinel Health Urgent Care",
             practice_phone="(555) 019-2834",
             timezone="Eastern Time (US & Canada)",
@@ -40,9 +39,6 @@ def get_settings(db: Session = Depends(get_db)):
             active_plan="professional",
             payment_card="Visa ending in 4242"
         )
-        db.add(settings)
-        db.commit()
-        db.refresh(settings)
     return settings
 
 
@@ -68,7 +64,7 @@ def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)):
     return settings
 
 
-@router.get("/team", dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value, UserRole.FRONT_DESK.value, UserRole.READ_ONLY_AUDITOR.value]))])
+@router.get("/team", dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value]))])
 def get_team_members(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> List[Dict[str, Any]]:
     """Retrieve all clinic users in the same organization."""
     query = db.query(User).filter(User.role != UserRole.SYSTEM_ADMINISTRATOR.value)
@@ -118,8 +114,6 @@ def invite_team_member(payload: Dict[str, Any], db: Session = Depends(get_db), c
         raise HTTPException(status_code=400, detail="Email already registered")
 
     target_org = current_user.org_id
-    if current_user.role == UserRole.SYSTEM_ADMINISTRATOR.value:
-        target_org = payload.get("org_id", "DEFAULT_ORG")
 
     new_user = User(
         email=email,
@@ -205,40 +199,27 @@ def revoke_team_member(user_id: int, db: Session = Depends(get_db), current_user
     return {"message": "Access revoked successfully"}
 
 
-@router.get("/integrations", dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value, UserRole.FRONT_DESK.value, UserRole.READ_ONLY_AUDITOR.value]))])
+@router.get("/integrations", dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value, UserRole.CLINIC_MANAGER.value]))])
 def get_integrations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> List[Dict[str, Any]]:
-    """Get clinic integrations status."""
-    integrations = db.query(IntegrationModel).all()
-
+    """Get clinic integrations status based on actual connector runtime state."""
+    from app.services.connector_manager import connector_runtime_state
+    
+    pf_state = connector_runtime_state.get("PRACTICE_FUSION")
     return [
         {
-            "id": i.id,
-            "name": i.name,
-            "type": i.type,
-            "connected": i.connected,
-            "lastSync": i.lastSync
+            "id": "PRACTICE_FUSION",
+            "name": "Practice Fusion EHR",
+            "type": "EHR",
+            "connected": pf_state.capability_state == "AUTHORIZED_READY" and not pf_state.is_stale,
+            "lastSync": pf_state.last_verified_at.isoformat() + "Z" if pf_state.last_verified_at else "Never"
         }
-        for i in integrations
     ]
 
 
 @router.post("/integrations/{integration_id}/toggle", dependencies=[Depends(RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value, UserRole.ORGANIZATION_ADMINISTRATOR.value]))])
 def toggle_integration(integration_id: str, db: Session = Depends(get_db)):
-    """Toggle the connected status of an integration."""
-    integration = db.query(IntegrationModel).filter(IntegrationModel.id == integration_id).first()
-    if not integration:
-        raise HTTPException(status_code=404, detail="Integration not found")
-
-    integration.connected = not integration.connected
-    integration.lastSync = 'Just now' if integration.connected else 'Never'
-    db.commit()
-    db.refresh(integration)
-
-    return {
-        "id": integration.id,
-        "connected": integration.connected,
-        "lastSync": integration.lastSync
-    }
+    """Toggle the connected status of an integration. Removed per F-20 (No shadow state allowed)."""
+    raise HTTPException(status_code=403, detail="Integrations cannot be manually toggled. They are governed by actual connector state.")
 
 
 @router.post("/send-sms-reminder")

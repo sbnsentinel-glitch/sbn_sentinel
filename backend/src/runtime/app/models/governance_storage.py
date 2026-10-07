@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, UniqueConstraint, Integer, Boolean
+from sqlalchemy import Column, String, Text, UniqueConstraint, Integer, Boolean, Index
 from app.db.database import Base
 
 
@@ -55,6 +55,11 @@ class HumanDecisionModel(Base):
     authority_basis = Column(String, nullable=True)
     reason = Column(Text, nullable=True)
     override_indicator = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index('uq_active_decision', 'recommendation_id', unique=True, sqlite_where=Column('status') == 'RECORDED'),
+        {'extend_existing': True}
+    )
 
 
 class OperationalActionModel(Base):

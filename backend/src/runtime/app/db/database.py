@@ -28,7 +28,8 @@ def ensure_schema_compatibility():
         from app.services.cursor_store import CursorModel  # noqa: F401
     except Exception:
         pass
-    Base.metadata.create_all(bind=engine)
+    # F-28: Transitioned to Alembic migrations.
+    # Base.metadata.create_all(bind=engine)
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
     for table_name, table in Base.metadata.tables.items():

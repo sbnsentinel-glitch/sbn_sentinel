@@ -68,6 +68,9 @@ def submit_event(
     The background task runs it through all 8 processing layers.
     """
     try:
+        if not request.raw_payload:
+            raise ValueError("Payload cannot be empty")
+        
         event = processing_orchestrator.create_event(
             event_type=request.event_type,
             source=request.source,
@@ -86,6 +89,8 @@ def submit_event(
             "event_id": event.id,
             "final_state": event.state
         }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail={"error": "Validation Error", "details": str(ve)})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Pipeline error: {str(e)}")
 

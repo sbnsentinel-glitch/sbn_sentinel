@@ -125,12 +125,8 @@ def seed_default_encounters(db: Session):
 def get_all_encounters(db: Session = Depends(get_db)):
     """
     Get all clinical patient encounters from SQLite database.
-    Seeds default records if database is empty.
     """
     encounters = db.query(EncounterModel).all()
-    if not encounters:
-        seed_default_encounters(db)
-        encounters = db.query(EncounterModel).all()
     return encounters
 
 

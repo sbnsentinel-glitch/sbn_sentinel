@@ -55,7 +55,7 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str, db: Ses
     Secured as per F-02 requirements.
     """
     origin = websocket.headers.get("origin")
-    if origin and origin not in settings.ALLOWED_WS_ORIGINS:
+    if not origin or origin not in settings.ALLOWED_WS_ORIGINS:
         await websocket.close(code=1008)
         return
 
@@ -152,10 +152,6 @@ def get_all_rules(db: Session = Depends(get_db), current_user: User = Depends(
     Retrieve all business rules for PASME administration.
     """
     rules = db.query(RuleModel).all()
-    if not rules:
-        # Seed rules if they don't exist yet
-        seed_rules(db)
-        rules = db.query(RuleModel).all()
 
     return [
         {

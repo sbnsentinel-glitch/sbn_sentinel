@@ -260,6 +260,10 @@ class OperationalExecutionEngine(BaseService):
             return {"status": "ERROR", "message": f"Action {action_id} not found."}
 
         # 1. Pre-execution Validation
+        terminal_states = [ActionStatus.COMPLETED, ActionStatus.CANCELLED, ActionStatus.UNKNOWN, ActionStatus.REJECTED]
+        if action.status in terminal_states:
+            return {"status": "ERROR", "message": f"Action is already in a terminal state: {action.status.value}"}
+
         attempts = governance_registry.get_execution_attempts(action_id)
         attempt_number = len(attempts) + 1
 

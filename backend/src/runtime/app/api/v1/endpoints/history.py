@@ -192,7 +192,10 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
             "actor_id": d.actor_id,
             "decision_type": d.decision_type,
             "status": d.status,
-            "timestamp": d.decision_timestamp.isoformat() + "Z" if hasattr(d.decision_timestamp, 'isoformat') else d.decision_timestamp
+            "authority_basis": d.authority_basis if d.authority_basis else "UNAVAILABLE_LEGACY",
+            "reason": d.reason,
+            "override_indicator": d.override_indicator,
+            "timestamp": d.decision_timestamp if d.decision_timestamp else None
         })
 
     actions_out = []

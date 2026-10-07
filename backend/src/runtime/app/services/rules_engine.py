@@ -54,8 +54,26 @@ class RulesEngine(BaseService):
         findings = []
 
         # We assume the policy result includes evaluated policy objects or IDs.
-        # For simplicity, we just ask the registry for applicable policies for this eval_time.
-        applicable_policies = self.registry.get_applicable_policies(now)
+        # F-19: Restrict to explicitly bound policies
+        if isinstance(policy_result, dict):
+            evaluated = policy_result.get("evaluated_policies", [])
+        else:
+            evaluated = getattr(policy_result, "evaluated_policies", [])
+            
+        bound_policies = set()
+        for ep in evaluated:
+            parts = ep.split(" / ")
+            if len(parts) > 0:
+                bound_policies.add(parts[0])
+
+        all_applicable = self.registry.get_applicable_policies(now)
+        applicable_policies = [p for p in all_applicable if p.policy_id in bound_policies]
+
+        if not applicable_policies:
+            return {
+                "rule_result": "NOT_EVALUABLE",
+                "reason": "CRITICAL_FAULT: No explicit policies bound to this context."
+            }
 
         for policy in applicable_policies:
             # 2. PRR-004: Resolve Applicable Rule Version
@@ -143,6 +161,10 @@ class RulesEngine(BaseService):
 
     def register_handler(self, rule_id: str, handler: callable, version: str = "V1") -> None:
         """Register a custom handler for testing or dynamic rules."""
+        # F-26: Implement hard limits on rule permutations to prevent memory exhaustion
+        if len(self._handlers) > 1000:
+            logger.warning(f"Handler limit reached (1000). Cannot register {rule_id} version {version}")
+            return
         self._handlers[(rule_id, version)] = handler
 
 

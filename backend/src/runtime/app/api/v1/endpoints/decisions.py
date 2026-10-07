@@ -21,12 +21,38 @@ class DecisionRequest(BaseModel):
 @router.post("/")
 async def record_human_decision(
     request: DecisionRequest,
-    current_user: Any = Depends(get_current_user)
+    current_user: Any = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     SESR-005: Record a Governed Human Decision.
     Authority is extracted from current_user, not the request payload (ADG-023).
     """
+    if not current_user.org_id:
+        raise HTTPException(status_code=403, detail="Missing authoritative organization ownership")
+
+    # Authoritative Recommendation validation (F-03 scope)
+    rec = db.query(RecommendationModel).filter(RecommendationModel.recommendation_id == request.recommendation_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+
+    # Scope verification: The user must own the journey/signal.
+    if current_user.role != "System Administrator":
+        from app.models.signal import SignalModel
+        # We need to find the signal that matches this journey_id and verify org_id
+        # In SQLite json extraction varies, so we fetch signals in the org and check
+        # For simplicity, if we don't find a matching signal in their org, fail.
+        signals_in_org = db.query(SignalModel).filter(SignalModel.org_id == current_user.org_id).all()
+        has_access = False
+        for s in signals_in_org:
+            m = s.metadata_data or {}
+            jid = m.get("correlation_id") or m.get("pipeline_event_id")
+            if jid == rec.journey_id:
+                has_access = True
+                break
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Recommendation out of organizational scope")
+
     result = human_decision_engine.record_decision(
         actor_id=str(current_user.id),
         actor_role=current_user.role,
