@@ -119,7 +119,8 @@ def invite_clinic_user(payload: Dict[str, Any], db: Session = Depends(get_db)):
         full_name=f"{clinic_name} - {full_name}",
         role=role,
         is_active=True,
-        org_id=f"org_{uuid.uuid4().hex[:8]}"
+        org_id=f"org_{uuid.uuid4().hex[:8]}",
+        clinic_id=f"clinic_{uuid.uuid4().hex[:8]}"
     )
     db.add(new_user)
     db.commit()

@@ -28,8 +28,9 @@ async def record_human_decision(
     SESR-005: Record a Governed Human Decision.
     Authority is extracted from current_user, not the request payload (ADG-023).
     """
-    if not current_user.org_id:
-        raise HTTPException(status_code=403, detail="Missing authoritative organization ownership")
+    if current_user.role != "System Administrator":
+        if not current_user.org_id or not current_user.clinic_id:
+            raise HTTPException(status_code=403, detail="Missing authoritative organization or clinic ownership")
 
     # Authoritative Recommendation validation (F-03 scope)
     rec = db.query(RecommendationModel).filter(RecommendationModel.recommendation_id == request.recommendation_id).first()
@@ -39,10 +40,10 @@ async def record_human_decision(
     # Scope verification: The user must own the journey/signal.
     if current_user.role != "System Administrator":
         from app.models.signal import SignalModel
-        # We need to find the signal that matches this journey_id and verify org_id
-        # In SQLite json extraction varies, so we fetch signals in the org and check
-        # For simplicity, if we don't find a matching signal in their org, fail.
-        signals_in_org = db.query(SignalModel).filter(SignalModel.org_id == current_user.org_id).all()
+        signals_in_org = db.query(SignalModel).filter(
+            SignalModel.org_id == current_user.org_id,
+            SignalModel.clinic_id == current_user.clinic_id
+        ).all()
         has_access = False
         for s in signals_in_org:
             m = s.metadata_data or {}

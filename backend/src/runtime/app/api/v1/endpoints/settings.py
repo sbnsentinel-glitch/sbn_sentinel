@@ -101,7 +101,8 @@ def invite_team_member(payload: Dict[str, Any], db: Session = Depends(get_db), c
         role=role,
         hashed_password="",
         is_active=False,
-        org_id=target_org
+        org_id=target_org,
+        clinic_id=current_user.clinic_id
     )
     db.add(new_user)
 
