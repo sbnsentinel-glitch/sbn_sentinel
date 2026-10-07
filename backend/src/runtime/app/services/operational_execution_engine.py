@@ -260,7 +260,7 @@ class OperationalExecutionEngine(BaseService):
             return {"status": "ERROR", "message": f"Action {action_id} not found."}
 
         # 1. Pre-execution Validation
-        terminal_states = [ActionStatus.COMPLETED, ActionStatus.CANCELLED, ActionStatus.REJECTED]
+        terminal_states = [ActionStatus.COMPLETED, ActionStatus.CANCELLED, ActionStatus.FAILED, ActionStatus.EXPIRED]
         if action.status in terminal_states:
             return {"status": "ERROR", "message": f"Action is already in a terminal state: {action.status.value}"}
 
