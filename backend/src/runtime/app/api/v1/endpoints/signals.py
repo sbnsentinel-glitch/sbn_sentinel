@@ -59,6 +59,11 @@ async def shutdown_event():
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    origin = websocket.headers.get("origin")
+    from app.core.config import settings
+    if not origin or origin not in settings.ALLOWED_WS_ORIGINS:
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
     q = asyncio.Queue()
     simulation_engine.add_client(q)
