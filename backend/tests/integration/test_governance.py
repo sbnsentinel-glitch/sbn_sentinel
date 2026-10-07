@@ -349,7 +349,7 @@ def test_e2e_authentic_journey(monkeypatch):
 
     from app.integrations.core.secrets import SigningKeyProvider
     monkeypatch.setattr(SigningKeyProvider, "is_configured", lambda: True)
-    
+
     from app.services.connector_manager import connector_runtime_state, ConnectorRuntimeStateDTO
     connector_runtime_state.set("PRACTICE_FUSION", ConnectorRuntimeStateDTO(capability_state="AUTHORIZED_READY", is_stale=False))
 
@@ -848,7 +848,6 @@ def test_a026b_practice_fusion_readiness(monkeypatch):
     from app.core.security import get_password_hash
     from app.models.connector import ConnectorModel
     import uuid
-    from datetime import datetime
 
     # We need TestClient
     from fastapi.testclient import TestClient

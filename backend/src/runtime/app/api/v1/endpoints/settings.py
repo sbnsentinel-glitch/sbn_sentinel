@@ -5,7 +5,6 @@ from app.db.database import get_db
 from app.models.settings import SettingsModel
 from app.models.user import User, UserRole
 from app.api.deps import get_current_user, RoleChecker
-from app.models.integration import IntegrationModel
 from app.schemas.settings import SettingsUpdate, SettingsResponse
 from app.core.email import send_email
 
@@ -203,7 +202,7 @@ def revoke_team_member(user_id: int, db: Session = Depends(get_db), current_user
 def get_integrations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> List[Dict[str, Any]]:
     """Get clinic integrations status based on actual connector runtime state."""
     from app.services.connector_manager import connector_runtime_state
-    
+
     pf_state = connector_runtime_state.get("PRACTICE_FUSION")
     return [
         {

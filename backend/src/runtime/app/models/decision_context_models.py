@@ -15,7 +15,7 @@ class ContextEvidenceModel(Base):
     evidence_type = Column(String, nullable=False)
     evidence_value = Column(String, nullable=False)
     added_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Although id acts as evidence_id in ContextEvidenceModel, we add constraint to prevent duplicate binding
     # But since id is PK, we'll constrain context_id + evidence_type + evidence_value to prevent identical facts
     __table_args__ = (
@@ -74,7 +74,7 @@ class ContextFreshnessModel(Base):
     evidence_id = Column(String, nullable=False)
     age_seconds = Column(String, nullable=False)
     is_stale = Column(Boolean, default=False)
-    
+
     __table_args__ = (
         UniqueConstraint('context_id', 'evidence_id', name='uq_context_freshness'),
         {'extend_existing': True}
@@ -92,7 +92,7 @@ class ContextProvenanceModel(Base):
     evidence_id = Column(String, nullable=False)
     source_system = Column(String, nullable=False)  # e.g. "Practice Fusion", "Manual Input"
     ingestion_timestamp = Column(DateTime, default=datetime.utcnow)
-    
+
     __table_args__ = (
         UniqueConstraint('context_id', 'evidence_id', name='uq_context_provenance'),
         {'extend_existing': True}

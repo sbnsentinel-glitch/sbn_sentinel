@@ -185,7 +185,7 @@ class ProcessingOrchestrator:
             event = self._layer4_context(event, db)
             if event.state != "Processing":
                 return event
-                
+
             if event.decision_context and event.decision_context.sufficiency_status == "PENDING_EVIDENCE":
                 sste.execute_transition(event, "OperationalEvent", "PendingEvidence")
                 db.commit()

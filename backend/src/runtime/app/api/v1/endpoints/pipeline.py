@@ -70,7 +70,7 @@ def submit_event(
     try:
         if not request.raw_payload:
             raise ValueError("Payload cannot be empty")
-        
+
         event = processing_orchestrator.create_event(
             event_type=request.event_type,
             source=request.source,

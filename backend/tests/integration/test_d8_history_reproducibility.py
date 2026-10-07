@@ -168,7 +168,7 @@ def test_d8_historical_chain_and_reproduction(client: TestClient, db_session: Se
         # Test 2: MATCH Reproduction (Ensures V1 isolation despite V2 existing)
         from app.services.rules_engine import rules_engine
         rules_engine.register_handler(rule_id, lambda d: "CONDITION_MET")
-        
+
         resp_repro = client.get(f"/api/v1/history/recommendations/{rec_id}/reproduction")
         assert resp_repro.status_code == 200
         repro = resp_repro.json()

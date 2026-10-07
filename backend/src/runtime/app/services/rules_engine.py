@@ -59,7 +59,7 @@ class RulesEngine(BaseService):
             evaluated = policy_result.get("evaluated_policies", [])
         else:
             evaluated = getattr(policy_result, "evaluated_policies", [])
-            
+
         bound_policies = set()
         for ep in evaluated:
             parts = ep.split(" / ")

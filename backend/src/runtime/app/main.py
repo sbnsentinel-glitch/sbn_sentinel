@@ -5,8 +5,6 @@ from starlette.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.api.v1.api import api_router
-from app.db.database import engine
-from app.models.signal import Base
 from app.models.user import User, UserRole
 from app.models.otp import OTPModel  # noqa
 

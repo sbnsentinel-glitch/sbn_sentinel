@@ -61,7 +61,7 @@ class OperationalOutcomeEngine(BaseService):
             if k not in observed or observed[k] != v:
                 # E.g., if observed target doesn't match expected target
                 return OutcomeConfirmationState.MISMATCH
-                
+
         # Schema mismatch check (F-16)
         for k in observed.keys():
             if k not in expected:
@@ -132,7 +132,7 @@ class OperationalOutcomeEngine(BaseService):
 
         from app.services.governance_registry import ActionStatus
 
-        if confirmation_state == OutcomeConfirmationState.UNKNOWN and observed:
+        if confirmation_state == OutcomeConfirmationState.UNKNOWN and observed_outcome:
             resolution_state = OutcomeResolutionState.UNRESOLVED
             closure_reason = "SCHEMA_MISMATCH_ANOMALY"
             closed_at = datetime.utcnow()
