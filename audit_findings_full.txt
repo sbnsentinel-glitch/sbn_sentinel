@@ -1,0 +1,454 @@
+<USER_REQUEST>
+I re-audited the current main branch at:
+
+SHA: 3d07f7bac55af0b9e8ba526030ffb0d6d9aa25ac
+CI: SES-011 Run 37654279633 — SUCCESS
+
+There has been major improvement and many earlier findings are now materially corrected. Please do not reopen or redesign the areas that are already working.
+
+The remaining work should now be limited only to the FAIL and PARTIAL findings below.
+
+1. F-17 — PARTIAL
+Reason: The journey ID issue is largely fixed, but HistoricalTraceSection still does not clear the previous reproductionResult when journeyId changes. A stale reproduction result can therefore remain visible while the next journey is loading.
+
+
+
+Fix:
+
+When journeyId changes, clear context, error and reproductionResult before loading the new history.
+
+Make sure results from an older async request cannot overwrite a newer journey state.
+
+
+Example:
+
+useEffect(() => { setContext(null); setError(null); setReproductionResult(null);
+
+let cancelled = false;
+
+const loadHistory = async () => { const data = await getHistoricalJourney(journeyId); if (cancelled) return; setContext(data); };
+
+loadHistory();
+
+return () => { cancelled = true; }; }, [journeyId]);
+
+Required evidence: AT-17 must prove switching between two journeys never displays the previous journey's reproduction result.
+
+2. F-19 — PARTIAL
+Reason: Connector readiness is much better and the old access_token dependency has been removed from the main readiness path. However, ConnectorRuntimeStateManager is currently in-memory and the authoritative transition to AUTHORIZED_READY is not yet clearly proven as durable/reconstructable.
+
+
+
+Fix:
+
+Define exactly one authoritative readiness lifecycle.
+
+Persist or deterministically reconstruct: CONFIGURED AUTH_VERIFIED AUTHORIZED_READY DEGRADED STALE
+
+Update that owner only after real auth/capability verification.
+
+On restart, readiness must not silently reset to an incorrect state.
+
+Ensure runtime, settings UI and /health/ready consume the same owner.
+
+
+Required evidence: AT-19 should show:
+
+configured but unauthenticated = not ready
+
+successful auth/capability verification = ready
+
+stale/failed auth = not ready
+
+restart does not create false readiness
+
+
+3. F-21 — FAIL
+Reason: canonical ingress still uses query-before-insert for source_connector + fact_key, but there is no database uniqueness constraint enforcing the idempotency identity. Concurrent workers can still race.
+
+
+
+Fix:
+
+Add a database unique constraint for the canonical ingestion identity.
+
+Prefer: UNIQUE(source_connector, fact_key)
+
+Handle IntegrityError as an idempotent duplicate, not as a fatal failure.
+
+Keep the existing pre-check only as an optimization, not the authority.
+
+
+Example migration:
+
+op.create_unique_constraint( "uq_evidence_source_fact", "evidence_repository", ["source_connector", "fact_key"] )
+
+Required evidence: AT-21 must submit the same record concurrently and within the same batch and prove only one row is persisted.
+
+4. F-22 — FAIL
+Reason: canonical FHIR extraction still loses patient relationships. Encounter does not retain subject/patient reference, and Coverage does not retain beneficiary/patient reference. Therefore the governed patient-linked handoff is still incomplete.
+
+
+
+Fix: For Encounter, retain the minimum required relationship:
+
+facts["subject_reference"] = ( resource.get("subject", {}).get("reference", "") )
+
+For Coverage:
+
+facts["beneficiary_reference"] = ( resource.get("beneficiary", {}).get("reference", "") )
+
+Then prove these canonical relationships are carried into the governed downstream context without storing unnecessary raw FHIR payloads.
+
+Required evidence: AT-22 should ingest synthetic Patient + Encounter + Coverage resources and prove the Encounter/Coverage records remain correctly linked to the intended patient.
+
+5. F-23 — FAIL
+Reason: BundlePager still follows server-supplied next URLs and sends the same Authorization header without validating that the destination is trusted. This leaves the original credential-forwarding risk.
+
+
+
+Fix:
+
+Establish the approved FHIR base origin when the pager is created.
+
+Before following every next URL:
+
+resolve relative URLs safely
+
+verify scheme and host match the approved origin
+
+reject cross-origin URLs
+
+
+Apply the same rule to bulk Content-Location/status/output URLs.
+
+
+Example:
+
+next_url = urljoin(base_url, next_link)
+
+if urlparse(next_url).origin != approved_origin: raise UntrustedPaginationUrl()
+
+Required evidence: AT-23 must prove a malicious cross-origin next URL does not receive the bearer token.
+
+6. F-24 — FAIL
+Reason: capability validation is still too generic. supports() returns true for read OR search-type even though normal sync performs a FHIR search. A resource can therefore pass the capability gate without supporting the actual interaction being used.
+
+
+
+Fix: Create operation-specific checks, for example:
+
+supports_search(resource_type) supports_read(resource_type) supports_last_updated(resource_type) supports_bulk_export(resource_type)
+
+For normal sync, require search-type specifically.
+
+Also validate the response shape:
+
+search must return a Bundle
+
+unexpected resource shapes must fail explicitly
+
+if no requested resources can be safely queried, sync must not return misleading success
+
+
+Required evidence: AT-24 should test:
+
+read-only resource cannot pass search sync
+
+search-capable resource succeeds
+
+malformed/non-Bundle search response fails safely
+
+
+7. F-25 — FAIL
+Reason: _lastUpdated cursor values are still compared as strings. CursorStore also lacks uniqueness and concurrency protection for connector_id + resource_type.
+
+
+
+Fix:
+
+Parse FHIR timestamps into timezone-aware datetime values before comparison.
+
+Store a normalized cursor representation.
+
+Add: UNIQUE(connector_id, resource_type)
+
+Update cursor monotonically inside a transaction.
+
+Prevent a later worker from moving the cursor backwards.
+
+Define a safe boundary strategy so equal-timestamp resources are not silently lost.
+
+
+Required evidence: AT-25 should prove:
+
+timezone-equivalent timestamps order correctly
+
+two concurrent workers cannot create duplicate cursor rows
+
+an older cursor cannot overwrite a newer one
+
+boundary records are not lost
+
+
+8. F-26 — FAIL
+Reason: JWT authentication still returns raw response JSON. There is no proper token lease with expires_at/granted scopes. Retry-After still assumes an integer, and retry duration is not bounded by a total budget.
+
+
+
+Fix: Create a token lease object containing:
+
+access_token
+
+token_type
+
+expires_at
+
+granted scopes
+
+
+Validate the token response before use.
+
+Refresh when expiry is near during pagination/batches.
+
+For transport:
+
+support Retry-After delta-seconds and HTTP-date
+
+cap individual delay
+
+cap total retry duration
+
+normalize 401 / 403 / 429 / timeout / network / invalid response into the existing D7 failure vocabulary
+
+
+Required evidence: AT-26 should test token expiry during pagination, invalid token responses, HTTP-date Retry-After, 429 and timeout handling.
+
+9. F-27 — FAIL
+Reason: stream_lines() can replay already-yielded rows if the HTTP stream fails and restarts. Normal PF sync still uses fetch_all(), which loads all pages into memory.
+
+
+
+Fix:
+
+Process pagination and bulk records in bounded batches.
+
+Persist each accepted batch through the corrected F-21 idempotent ingress.
+
+Define durable restart/resume semantics.
+
+If the provider cannot resume a byte stream, replay must still be harmless because ingress dedupe is authoritative.
+
+Avoid fetch_all() for potentially large practice-wide syncs.
+
+Add a small synthetic second-adapter test to prove the shared runtime is genuinely reusable.
+
+
+Required evidence: AT-27 must interrupt after some accepted rows, restart, and prove no loss or duplication.
+
+10. F-28 — PARTIAL
+Reason: Production runtime DDL has been substantially improved and Alembic files now exist. However, the migration chain needs verification. f24_multi_config starts with down_revision=None, and later migrations build from it. We need proof this is the correct migration chain for an existing Sentinel database and not a new disconnected migration root.
+
+
+
+Fix:
+
+Verify there is one intended Alembic head.
+
+Confirm the migration chain starts from the actual existing production schema baseline.
+
+Include all Round 2 schema changes in ordered migrations.
+
+Prove upgrade from an existing database works without duplicate-column or destructive reset.
+
+Keep SQLite create_all only for isolated test/dev bootstrap if required, never as production migration evidence.
+
+
+Required evidence: AT-28 should show: alembic current
+alembic heads
+alembic upgrade head
+
+against an existing production-like database copy.
+
+Return the final Alembic revision.
+
+11. F-30 — PARTIAL
+Reason: The API origin and bearer-token protections are significantly improved. However, getHistoricalRecommendation() and getHistoricalJourney() still call res.json() without the same content-type/schema validation used in reproduceDecision().
+
+
+
+Fix: Create one typed JSON helper used by all history API functions.
+
+Example:
+
+async function parseJson<T>( res: Response, schema: ZodSchema<T> ): Promise<T> { const type = res.headers.get("content-type"); if (!type?.includes("application/json")) { throw new ApiError(res.status, "Invalid response type"); }
+
+return schema.parse(await res.json()); }
+
+Apply it consistently to all D8 endpoints.
+
+Required evidence: AT-30 must prove 401/403/404/500/non-JSON/malformed JSON cannot be rendered as a successful history DTO.
+
+12. F-31 — PARTIAL
+Reason: The Dialog implementation is now substantially corrected: focus entry, focus trap, focus restoration and aria-labelledby are present. The remaining weakness is verification. The D9 T07 test currently uses expect(true).toBe(true), which does not test the behavior.
+
+
+
+Fix: Replace the placeholder assertion with an actual behavioral test:
+
+open Dialog from a trigger
+
+assert focus moves into Dialog
+
+Tab through final control and assert focus wraps
+
+Shift+Tab from first and assert wrap
+
+press Escape / close
+
+assert focus returns to original trigger
+
+assert dialog is labelled by its heading
+
+
+Required evidence: AT-31 must be an executable behavioral test, not a comment/manual placeholder.
+
+13. F-32 — FAIL
+Reason: D9 still has 10 skipped tests and several weak/proxy assertions. T07 is a placeholder. T13 proves only that the matchMedia mock returns true, not that Sentinel changes its behavior. T28 still refers to the old SHA/run rather than the current final SHA.
+
+
+
+Fix:
+
+Replace weak assertions with behavior-based tests where automation is possible.
+
+Keep genuinely manual checks manual, but provide dated evidence instead of counting them as passed automated tests.
+
+Update T28 to the actual final SHA and exact CI run.
+
+Build the frozen T01-T30 crosswalk: Requirement → automated/manual procedure → evidence artifact → SHA → result.
+
+Do not reduce the original D9 scope.
+
+
+Required evidence: AT-32 should demonstrate that intentionally breaking reduced-motion or focus behavior makes the relevant test fail.
+
+14. F-33 — FAIL
+Reason: Dependency reporting is now added, which is good, but the CI command is:
+
+
+
+npm audit --json > dependency-audit.json || true
+
+This means dependency findings can never fail the release gate.
+
+Current exact-SHA install still reports:
+
+14 vulnerabilities
+2 moderate
+11 high
+1 critical
+
+Fix:
+
+Keep the dependency-audit artifact.
+
+Add a documented disposition for every high/critical advisory: package advisory/CVE affected version fixed version runtime/dev-only exposure remediation or approved exception owner
+
+Add a release policy that fails CI for material unaccepted vulnerabilities.
+
+Do not blindly use npm audit fix --force without regression analysis.
+
+
+Required evidence: AT-33 must show an unaccepted material advisory blocks release, while an explicitly documented approved exception is traceable.
+
+15. F-34 — FAIL
+Reason: release_manifest.yaml exists, but it is stale and contains placeholder/incomplete values.
+
+
+
+It currently references: source_sha: 3f654331...
+
+The current audited SHA is: 3d07f7bac55af0b9e8ba526030ffb0d6d9aa25ac
+
+It also contains shortened/example-style image digests and an old rollback hash, and schema_revision does not match the latest migration chain.
+
+Fix: Regenerate the manifest only from actual release artifacts.
+
+Required fields:
+
+exact source SHA
+
+full backend image digest
+
+full frontend image digest
+
+actual deployed backend SHA
+
+actual deployed frontend SHA
+
+final Alembic revision
+
+environment class
+
+API origin
+
+readiness URL
+
+rollback image digest
+
+deployment timestamp/version
+
+
+Then provide:
+
+backup restore evidence
+
+rollback rehearsal
+
+safe deployed smoke test
+
+readiness failure test
+
+authorized connector-unavailable state
+
+Practice Fusion approval/sandbox evidence separately
+
+
+Required evidence: AT-34 must prove the deployed artifacts match the verified source and that restore/rollback actually work.
+
+Please fix only the findings above and preserve all current working corrections. Do not reopen already corrected F-IDs or redesign the architecture.
+
+After these are complete, return:
+
+final branch
+
+exact final SHA
+
+exact green SES-011 run
+
+updated F-17/F-19/F-21–F-28/F-30–F-34 disposition only
+
+matching AT evidence
+
+final Alembic head
+
+dependency disposition
+
+final release manifest and deployment evidence. check this and fix bro 
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-09T07:21:14+05:30.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\backend\src\runtime\app\integrations\core\transport.py (LANGUAGE_PYTHON)
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\frontend\src\components\GovernedUI\ProgressiveSection.tsx (LANGUAGE_TSX)
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\frontend\src\utils\governedNavigation.ts (LANGUAGE_TYPESCRIPT)
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\frontend\src\utils\actionLifecycle.ts (LANGUAGE_TYPESCRIPT)
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\frontend\src\types\actionLifecycle.ts (LANGUAGE_TYPESCRIPT)
+Running terminal commands:
+- npm run dev (in c:\Users\User\Desktop\zikrabyte\Bhudhaara\frontend, running for 16h2m24s)
+- npm run dev (in c:\Users\User\Desktop\houseplanfiles1\backend, running for 11h22m49s)
+- npm run dev (in c:\Users\User\Desktop\houseplanfiles1\frontend, running for 11h22m41s)
+</ADDITIONAL_METADATA>

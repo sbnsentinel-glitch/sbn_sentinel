@@ -4,6 +4,7 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List
+from sqlalchemy import exc
 
 logger = logging.getLogger(__name__)
 
@@ -26,17 +27,24 @@ def _extract_canonical_facts(
     }
     # Add resource-type-specific minimal fields
     if context_type == "Patient":
-        name = resource.get("name", [{}])[0] if resource.get("name") else {}
-        facts["family"] = name.get("family", "")
+        names = resource.get("name")
+        if isinstance(names, list) and names and isinstance(names[0], dict):
+            facts["family"] = names[0].get("family", "")
+        elif isinstance(names, str):
+            facts["family"] = names
+        else:
+            facts["family"] = ""
         facts["birth_date"] = resource.get("birthDate", "")
     elif context_type == "Encounter":
         facts["class"] = resource.get("class", {}).get("code", "")
         facts["period_start"] = resource.get("period", {}).get("start", "")
+        facts["subject_reference"] = resource.get("subject", {}).get("reference", "")
     elif context_type == "Coverage":
         facts["payor"] = (
             resource.get("payor", [{}])[0].get("reference", "")
             if resource.get("payor") else ""
         )
+        facts["beneficiary_reference"] = resource.get("beneficiary", {}).get("reference", "")
     return facts
 
 
@@ -129,17 +137,23 @@ class CanonicalIngressService:
                         "resource_id": resource_id,
                     }),
                 )
-                db.add(evidence)
-                processed += 1
+                try:
+                    with db.begin_nested():
+                        db.add(evidence)
+                    processed += 1
+                except exc.IntegrityError:
+                    pass  # Idempotent duplicate
 
             db.commit()
 
+        duplicates_skipped = len(records) - processed
         self.logger.info(
-            f"[{connector_id}] Successfully ingested {processed} canonical records."
+            f"[{connector_id}] Successfully ingested {processed} canonical records ({duplicates_skipped} duplicates skipped)."
         )
         return {
             "status": "Success",
             "processed": processed,
+            "duplicates_skipped": duplicates_skipped,
             "connector_id": connector_id,
         }
 

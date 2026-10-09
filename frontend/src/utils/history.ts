@@ -1,12 +1,20 @@
-import { fetchWithAuth } from './fetchWithAuth';
+import { fetchWithAuth, ApiError } from './fetchWithAuth';
 import { HistoricalContextResponse, ReproductionResult } from '../types/history';
+
+async function parseJson<T>(res: Response): Promise<T> {
+    const type = res.headers.get("content-type");
+    if (!type?.includes("application/json")) {
+        throw new ApiError(res.status, "Invalid response type");
+    }
+    return res.json() as Promise<T>;
+}
 
 /**
  * Fetches the exact historical lifecycle bindings for a specific recommendation.
  */
 export async function getHistoricalRecommendation(recommendationId: string): Promise<HistoricalContextResponse> {
     const res = await fetchWithAuth(`/api/v1/history/recommendations/${recommendationId}`);
-    return res.json();
+    return parseJson<HistoricalContextResponse>(res);
 }
 
 /**
@@ -15,7 +23,7 @@ export async function getHistoricalRecommendation(recommendationId: string): Pro
  */
 export async function getHistoricalJourney(journeyId: string): Promise<HistoricalContextResponse> {
     const res = await fetchWithAuth(`/api/v1/history/journeys/${journeyId}`);
-    return res.json();
+    return parseJson<HistoricalContextResponse>(res);
 }
 
 /**
@@ -24,9 +32,5 @@ export async function getHistoricalJourney(journeyId: string): Promise<Historica
  */
 export async function reproduceDecision(recommendationId: string): Promise<ReproductionResult> {
     const res = await fetchWithAuth(`/api/v1/history/recommendations/${recommendationId}/reproduction`);
-    const contentType = res.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Invalid content type from server");
-    }
-    return res.json();
+    return parseJson<ReproductionResult>(res);
 }

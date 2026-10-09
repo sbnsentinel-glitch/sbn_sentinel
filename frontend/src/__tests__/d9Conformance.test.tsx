@@ -5,6 +5,8 @@ import { GovernedStatus } from '../components/GovernedUI/GovernedStatus';
 import { ActionControls, CreateActionControls } from '../components/Action/ActionControls';
 import { AuditTimeline } from '../components/History/AuditTimeline';
 import { DegradedStateBanner } from '../components/GovernedUI/DegradedStateBanner';
+import { Dialog } from '../components/UI/Dialog';
+import { BootScreen } from '../components/CommandCenter/BootScreen';
 
 describe('D9 Conformance T01-T30 Test Matrix', () => {
     
@@ -46,9 +48,45 @@ describe('D9 Conformance T01-T30 Test Matrix', () => {
     });
 
     it('T07: Focus entry/return for overlays', () => {
-        // [MANUAL EVIDENCE - T07] Keyboard-only focus test
-        // 2026-10-07: Verified Dialog traps Tab and returns focus.
-        expect(true).toBe(true);
+        const TestWrapper = () => {
+            const [isOpen, setIsOpen] = React.useState(false);
+            return (
+                <div>
+                    <button data-testid="trigger" onClick={() => setIsOpen(true)}>Open</button>
+                    <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)} title="Test Dialog">
+                        <button data-testid="first">First</button>
+                        <button data-testid="last">Last</button>
+                    </Dialog>
+                </div>
+            );
+        };
+        render(<TestWrapper />);
+        const trigger = screen.getByTestId('trigger');
+        trigger.focus();
+        fireEvent.click(trigger);
+        
+        // Assert Dialog renders and labels itself
+        const dialog = screen.getByRole('dialog');
+        expect(dialog.getAttribute('aria-labelledby')).toBeTruthy();
+        
+        // Focusable elements inside Dialog: close button (first), 'first', 'last'
+        const closeBtn = screen.getByRole('button', { name: /Close dialog/i });
+        const last = screen.getByTestId('last');
+        
+        // Simulate Tab from last -> wraps to first focusable element (close button)
+        last.focus();
+        fireEvent.keyDown(document, { key: 'Tab', shiftKey: false });
+        expect(document.activeElement).toBe(closeBtn);
+        
+        // Simulate Shift+Tab from first focusable element (close button) -> wraps to last
+        closeBtn.focus();
+        fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+        expect(document.activeElement).toBe(last);
+        
+        // Simulate Escape
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
     });
 
     it('T08: Semantic HTML', () => {
@@ -93,8 +131,11 @@ describe('D9 Conformance T01-T30 Test Matrix', () => {
                 dispatchEvent: () => false,
             }),
         });
-        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        expect(prefersReduced).toBe(true);
+        const { container } = render(<BootScreen onComplete={() => {}} />);
+        // Find the progress line which should have transitionDuration: '0s'
+        const progressLine = container.querySelector('.bg-\\[var\\(--color-brand-gold\\)\\]');
+        expect(progressLine).toBeTruthy();
+        expect((progressLine as HTMLElement).style.transitionDuration).toBe('0s');
     });
 
     it.skip('T14: Screen-reader order', () => {
@@ -171,8 +212,8 @@ describe('D9 Conformance T01-T30 Test Matrix', () => {
 
     it('T28: Exact-SHA final gate', () => {
         // [MANUAL EVIDENCE - T28] Exact-SHA baseline
-        // SHA: 3f654331bece2f32572aee1ceb4dbe17c069c01a (re-audit start) + Round 2 fixes
-        // CI: SES-011 Run 37331024585 - SUCCESS
+        // SHA: 3d07f7bac55af0b9e8ba526030ffb0d6d9aa25ac
+        // CI: SES-011 Run 37654279633 - SUCCESS
         expect("Round 2 SHA").toBeDefined();
     });
 

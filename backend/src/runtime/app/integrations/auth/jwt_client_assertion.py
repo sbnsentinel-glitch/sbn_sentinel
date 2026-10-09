@@ -2,10 +2,41 @@ import uuid
 import time
 import jwt
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timezone, timedelta
+from dataclasses import dataclass, field
 from app.integrations.core.contracts import AuthStrategy
+from app.connectors.base_connector import ConnectorException
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TokenLease:
+    """
+    Durable token lease object encapsulating access token, token type,
+    expiration timestamp, and granted scopes.
+    """
+    access_token: str
+    token_type: str
+    expires_at: datetime
+    scopes: List[str] = field(default_factory=list)
+    raw_response: Dict[str, Any] = field(default_factory=dict)
+
+    def is_expired(self, buffer_seconds: int = 30) -> bool:
+        """Returns True if the token is expired or within buffer_seconds of expiration."""
+        now = datetime.now(timezone.utc)
+        return (self.expires_at - now).total_seconds() <= buffer_seconds
+
+    def __getitem__(self, item: str):
+        if hasattr(self, item):
+            return getattr(self, item)
+        return self.raw_response.get(item)
+
+    def get(self, item: str, default=None):
+        if hasattr(self, item):
+            return getattr(self, item)
+        return self.raw_response.get(item, default)
 
 
 class JwtClientAssertionAuth(AuthStrategy):
@@ -31,6 +62,7 @@ class JwtClientAssertionAuth(AuthStrategy):
         # Scopes must be minimum-necessary, derived from manifest — never wildcard
         self.scopes = scopes or []
         self.algorithm = algorithm
+        self._current_lease: Optional[TokenLease] = None
 
     def _generate_jwt_assertion(self) -> str:
         """Generates a signed JWT client assertion with compliant header."""
@@ -56,10 +88,18 @@ class JwtClientAssertionAuth(AuthStrategy):
         )
         return token
 
-    async def authenticate(self) -> Dict[str, Any]:
+    async def get_valid_token(self, min_validity_seconds: int = 30) -> TokenLease:
+        """
+        Returns active token lease, refreshing automatically if near expiry.
+        """
+        if self._current_lease is None or self._current_lease.is_expired(buffer_seconds=min_validity_seconds):
+            await self.authenticate()
+        return self._current_lease
+
+    async def authenticate(self) -> TokenLease:
         """
         Authenticates against the token endpoint.
-        Returns the authorization token data.
+        Validates the token response and returns a structured TokenLease.
         Scopes are minimum-necessary as derived from manifest resources.
         """
         assertion = self._generate_jwt_assertion()
@@ -78,4 +118,39 @@ class JwtClientAssertionAuth(AuthStrategy):
             data["scope"] = scope_string
 
         response = await transport.post(self.token_endpoint, data=data)
-        return response.json()
+        token_json = response.json() if hasattr(response, "json") else response
+
+        # Validate token response before use
+        if not isinstance(token_json, dict) or not token_json.get("access_token"):
+            raise ConnectorException(
+                "Invalid token response: missing or empty access_token",
+                failure_code="AUTHENTICATION_FAILED",
+            )
+
+        access_token = str(token_json["access_token"])
+        token_type = str(token_json.get("token_type", "Bearer"))
+        try:
+            expires_in = int(token_json.get("expires_in", 300))
+        except (ValueError, TypeError):
+            expires_in = 300
+
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
+        # Granted scopes
+        raw_scope = token_json.get("scope", "")
+        if isinstance(raw_scope, str):
+            granted_scopes = raw_scope.split() if raw_scope else self.scopes
+        elif isinstance(raw_scope, list):
+            granted_scopes = raw_scope
+        else:
+            granted_scopes = self.scopes
+
+        lease = TokenLease(
+            access_token=access_token,
+            token_type=token_type,
+            expires_at=expires_at,
+            scopes=granted_scopes,
+            raw_response=token_json,
+        )
+        self._current_lease = lease
+        return lease

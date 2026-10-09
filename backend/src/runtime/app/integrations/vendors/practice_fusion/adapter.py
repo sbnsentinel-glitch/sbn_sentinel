@@ -89,7 +89,7 @@ class PracticeFusionAdapter(IntegrationAdapter):
 
         if data.get("resourceType") == "Bundle":
             return [entry.get("resource", {}) for entry in data.get("entry", [])]
-        return [data]
+        raise ValueError(f"Search for {resource_type} did not return a Bundle.")
 
     async def sync(self) -> Dict[str, Any]:
         """
@@ -132,15 +132,14 @@ class PracticeFusionAdapter(IntegrationAdapter):
             "Authorization": f"Bearer {token_data['access_token']}",
             "Accept": "application/fhir+json",
         }
-        pager = BundlePager(transport, headers)
+        pager = BundlePager(transport, headers, auth=self.auth)
 
         # Step 3: Iterate manifest-enabled resources
         for resource_type, resource_config in self.manifest.resources.items():
-            # Gate: capability must support it
-            if not capabilities.supports(resource_type):
+            if not capabilities.supports_search(resource_type):
                 logger.info(
                     f"[{self.connector_id}] Skipping {resource_type}: "
-                    "not in CapabilityStatement"
+                    "not in CapabilityStatement or search not supported"
                 )
                 continue
 
@@ -159,38 +158,38 @@ class PracticeFusionAdapter(IntegrationAdapter):
                 params["_lastUpdated"] = f"gt{checkpoint}"
 
             url = f"{base_url}/{resource_type}"
-
-            records = await pager.fetch_all(url, params)
-
-            if not records:
-                continue
-
-            canonical_records = []
             newest_checkpoint = checkpoint
 
-            for r in records:
-                canonical_records.append(
-                    {
-                        "context_type": resource_type,
-                        "vendor": self.manifest.vendor_name,
-                        "detail": r,
-                    }
-                )
-                last_updated = r.get("meta", {}).get("lastUpdated")
-                if last_updated:
-                    if not newest_checkpoint or last_updated > newest_checkpoint:
-                        newest_checkpoint = last_updated
+            # Process in bounded batches (page by page) instead of loading all pages into memory
+            async for batch in pager.iterate(url, params):
+                if not batch:
+                    continue
 
-            result = await canonical_ingress.submit_batch(
-                self.connector_id, canonical_records
-            )
-            total_processed += result.get("processed", 0)
+                canonical_records = []
+                for r in batch:
+                    canonical_records.append(
+                        {
+                            "context_type": resource_type,
+                            "vendor": self.manifest.vendor_name,
+                            "detail": r,
+                        }
+                    )
+                    last_updated = r.get("meta", {}).get("lastUpdated")
+                    if last_updated:
+                        if not newest_checkpoint or last_updated > newest_checkpoint:
+                            newest_checkpoint = last_updated
 
-            # Step 4: Commit cursor AFTER durable persistence
-            if newest_checkpoint:
-                cursor_store.commit(
-                    self.connector_id, resource_type, newest_checkpoint
-                )
+                if canonical_records:
+                    result = await canonical_ingress.submit_batch(
+                        self.connector_id, canonical_records
+                    )
+                    total_processed += result.get("processed", 0)
+
+                    # Step 4: Commit cursor AFTER durable persistence of the batch
+                    if newest_checkpoint:
+                        cursor_store.commit(
+                            self.connector_id, resource_type, newest_checkpoint
+                        )
 
         return {
             "status": "Success",

@@ -115,14 +115,18 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: F-33 Dependency Audit and SBOM
-      run: npm audit --json > dependency-audit.json || true
+    - name: F-33 Dependency Audit and Release Policy Gate
+      run: |
+        npm audit --json > dependency-audit.json || true
+        node scripts/check-dependency-audit.js
       
     - name: Upload Dependency Audit Artifact
       uses: actions/upload-artifact@v4
       with:
         name: frontend-dependency-audit
-        path: frontend/dependency-audit.json
+        path: |
+          frontend/dependency-audit.json
+          frontend/dependency-disposition.json
 
     - name: Run Tests
       run: npm run test

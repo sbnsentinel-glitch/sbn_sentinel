@@ -1,10 +1,13 @@
-from sqlalchemy import Column, String, DateTime, Integer, Text
+from sqlalchemy import Column, String, DateTime, Integer, Text, UniqueConstraint
 from app.db.database import Base
 from datetime import datetime
 
 
 class EvidenceModel(Base):
     __tablename__ = "evidence_repository"
+    __table_args__ = (
+        UniqueConstraint("source_connector", "fact_key", name="uq_evidence_source_fact"),
+    )
     evidence_id = Column(String, primary_key=True)
     canonical_entity = Column(String, nullable=False)
     fact_key = Column(String, nullable=False)

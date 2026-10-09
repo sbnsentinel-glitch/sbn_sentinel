@@ -82,14 +82,29 @@ class CapabilitySnapshot:
         })
 
     def supports(self, resource_type: str) -> bool:
-        """Returns True if resource_type is known and readable."""
+        """Returns True if resource_type is supported for read or search."""
         cap = self._resources.get(resource_type)
         return cap is not None and (cap.read or cap.search_type)
+
+    def supports_read(self, resource_type: str) -> bool:
+        """Returns True if resource_type is readable."""
+        cap = self._resources.get(resource_type)
+        return cap is not None and cap.read
+
+    def supports_search(self, resource_type: str) -> bool:
+        """Returns True if resource_type is searchable."""
+        cap = self._resources.get(resource_type)
+        return cap is not None and cap.search_type
 
     def supports_last_updated(self, resource_type: str) -> bool:
         """Returns True if _lastUpdated is a supported search param."""
         cap = self._resources.get(resource_type)
         return cap is not None and "_lastUpdated" in cap.search_params
+
+    def supports_bulk_export(self, resource_type: str) -> bool:
+        """Returns True if bulk export is supported for the resource."""
+        cap = self._resources.get(resource_type)
+        return cap is not None and cap.bulk_export
 
     def get(self, resource_type: str) -> ResourceCapability:
         return self._resources.get(resource_type)

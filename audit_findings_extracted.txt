@@ -1,0 +1,113 @@
+<USER_REQUEST>
+I re-audited the current main branch at:
+
+SHA: 3d07f7bac55af0b9e8ba526030ffb0d6d9aa25ac
+CI: SES-011 Run 37654279633 — SUCCESS
+
+There has been major improvement and many earlier findings are now materially corrected. Please do not reopen or redesign the areas that are already working.
+
+The remaining work should now be limited only to the FAIL and PARTIAL findings below.
+
+1. F-17 — PARTIAL
+Reason: The journey ID issue is largely fixed, but HistoricalTraceSection still does not clear the previous reproductionResult when journeyId changes. A stale reproduction result can therefore remain visible while the next journey is loading.
+
+
+
+Fix:
+
+When journeyId changes, clear context, error and reproductionResult before loading the new history.
+
+Make sure results from an older async request cannot overwrite a newer journey state.
+
+
+Example:
+
+useEffect(() => { setContext(null); setError(null); setReproductionResult(null);
+
+let cancelled = false;
+
+const loadHistory = async () => { const data = await getHistoricalJourney(journeyId); if (cancelled) return; setContext(data); };
+
+loadHistory();
+
+return () => { cancelled = true; }; }, [journeyId]);
+
+Required evidence: AT-17 must prove switching between two journeys never displays the previous journey's reproduction result.
+
+2. F-19 — PARTIAL
+Reason: Connector readiness is much better and the old access_token dependency has been removed from the main readiness path. However, ConnectorRuntimeStateManager is currently in-memory and the authoritative transition to AUTHORIZED_READY is not yet clearly proven as durable/reconstructable.
+
+
+
+Fix:
+
+Define exactly one authoritative readiness lifecycle.
+
+Persist or deterministically reconstruct: CONFIGURED AUTH_VERIFIED AUTHORIZED_READY DEGRADED STALE
+
+Update that owner only after real auth/capability verification.
+
+On restart, readiness must not silently reset to an incorrect state.
+
+Ensure runtime, settings UI and /health/ready consume the same owner.
+
+
+Required eviden
+<truncated 10907 bytes>
+image digest
+
+deployment timestamp/version
+
+
+Then provide:
+
+backup restore evidence
+
+rollback rehearsal
+
+safe deployed smoke test
+
+readiness failure test
+
+authorized connector-unavailable state
+
+Practice Fusion approval/sandbox evidence separately
+
+
+Required evidence: AT-34 must prove the deployed artifacts match the verified source and that restore/rollback actually work.
+
+Please fix only the findings above and preserve all current working corrections. Do not reopen already corrected F-IDs or redesign the architecture.
+
+After these are complete, return:
+
+final branch
+
+exact final SHA
+
+exact green SES-011 run
+
+updated F-17/F-19/F-21–F-28/F-30–F-34 disposition only
+
+matching AT evidence
+
+final Alembic head
+
+dependency disposition
+
+final release manifest and deployment evidence. check this and fix bro 
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-09T07:21:14+05:30.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\backend\src\runtime\app\integrations\core\transport.py (LANGUAGE_PYTHON)
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\frontend\src\components\GovernedUI\ProgressiveSection.tsx (LANGUAGE_TSX)
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\frontend\src\utils\governedNavigation.ts (LANGUAGE_TYPESCRIPT)
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\frontend\src\utils\actionLifecycle.ts (LANGUAGE_TYPESCRIPT)
+- c:\Users\User\Desktop\frontend_practice\New folder\sbnSentinal\sbn-sentinel\frontend\src\types\actionLifecycle.ts (LANGUAGE_TYPESCRIPT)
+Running terminal commands:
+- npm run dev (in c:\Users\User\Desktop\zikrabyte\Bhudhaara\frontend, running for 16h2m24s)
+- npm run dev (in c:\Users\User\Desktop\houseplanfiles1\backend, running for 11h22m49s)
+- npm run dev (in c:\Users\User\Desktop\houseplanfiles1\frontend, running for 11h22m41s)
+</ADDITIONAL_METADATA>

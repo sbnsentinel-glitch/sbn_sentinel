@@ -1,8 +1,19 @@
 release_manifest:
-  source_sha: 3f654331bece2f32572aee1ceb4dbe17c069c01a
-  backend_image_digest: sha256:d84b726c...
-  frontend_image_digest: sha256:f12a839b...
-  schema_revision: f28_severity_score
-  environment: PRODUCTION
+  source_sha: 3d07f7bac55af0b9e8ba526030ffb0d6d9aa25ac
+  actual_deployed_backend_sha: 3d07f7bac55af0b9e8ba526030ffb0d6d9aa25ac
+  actual_deployed_frontend_sha: 3d07f7bac55af0b9e8ba526030ffb0d6d9aa25ac
+  backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
+  frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
+  rollback_image_digest: sha256:c27f31481b7a6e19df258673a5a732a39eef54d19d67b2d28fbe6b12a52efc64
+  final_alembic_revision: f21_f25_constraints
+  environment_class: PRODUCTION_PRE_PROD_SYNTHETIC
   api_origin: https://api.sbnsentinel.com
-  rollback_image: sha256:old_rollback_hash...
+  readiness_url: https://api.sbnsentinel.com/api/v1/health/ready
+  deployment_version: v1.2.0-round2
+  deployment_timestamp: 2026-10-09T02:00:00Z
+  infrastructure:
+    provider: DigitalOcean
+    region: SFO3
+    droplet_name: sbnsentinel-prod-sfo3
+    database_volume: postgres_data (/var/lib/postgresql/data)
+    backup_schedule: Daily automated snapshot + pg_dump offsite encryption

@@ -24,11 +24,17 @@ export const HistoricalTraceSection: React.FC<HistoricalTraceSectionProps> = ({ 
     const [reproducing, setReproducing] = useState(false);
 
     useEffect(() => {
+        setContext(null);
+        setError(null);
+        setReproductionResult(null);
+
+        let cancelled = false;
+
         const loadHistory = async () => {
             setLoading(true);
-            setError(null);
             try {
                 const data = await getHistoricalJourney(journeyId);
+                if (cancelled) return;
                 setContext(data);
                 
                 // If it's not ambiguous, we can auto-trigger reproduction on the first recommendation
@@ -36,24 +42,31 @@ export const HistoricalTraceSection: React.FC<HistoricalTraceSectionProps> = ({ 
                     setReproducing(true);
                     try {
                         const repro = await reproduceDecision(data.bindings.recommendations[0].recommendation_id);
+                        if (cancelled) return;
                         setReproductionResult(repro);
                     } catch (e) {
+                        if (cancelled) return;
                         console.error("Reproduction failed", e);
                     } finally {
-                        setReproducing(false);
+                        if (!cancelled) setReproducing(false);
                     }
                 }
             } catch (err: any) {
+                if (cancelled) return;
                 console.error("History fetch error:", err);
                 setError(err.message || t.history.fetchError);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
         if (journeyId) {
             loadHistory();
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [journeyId]);
 
     const dataState = loading ? 'loading' : error ? 'unavailable' : context ? 'ready' : 'unavailable';

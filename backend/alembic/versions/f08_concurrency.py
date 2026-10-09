@@ -7,7 +7,6 @@ Create Date: 2026-10-07 13:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'f08_concurrency'
@@ -15,31 +14,66 @@ down_revision = 'f28_severity_score'
 branch_labels = None
 depends_on = None
 
+
 def upgrade() -> None:
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    dec_cols = {c['name'] for c in insp.get_columns('governed_decisions')} if insp.has_table('governed_decisions') else set()
+    rec_cols = {c['name'] for c in insp.get_columns('governed_recommendations')} if insp.has_table('governed_recommendations') else set()
+    act_cols = {c['name'] for c in insp.get_columns('governed_actions')} if insp.has_table('governed_actions') else set()
+
     # F-05: Human-decision persistence fidelity
-    op.add_column('governed_decisions', sa.Column('reason', sa.String(), nullable=True))
-    op.add_column('governed_decisions', sa.Column('authority_basis', sa.String(), nullable=True))
-    op.add_column('governed_decisions', sa.Column('override_indicator', sa.Boolean(), nullable=True))
+    with op.batch_alter_table("governed_decisions") as batch_op:
+        if 'reason' not in dec_cols:
+            batch_op.add_column(sa.Column('reason', sa.String(), nullable=True))
+        if 'authority_basis' not in dec_cols:
+            batch_op.add_column(sa.Column('authority_basis', sa.String(), nullable=True))
+        if 'override_indicator' not in dec_cols:
+            batch_op.add_column(sa.Column('override_indicator', sa.Boolean(), nullable=True))
     
     # F-06: Recommendation authority persistence
-    op.add_column('governed_recommendations', sa.Column('authority_requirement', sa.String(), nullable=True))
+    with op.batch_alter_table("governed_recommendations") as batch_op:
+        if 'authority_requirement' not in rec_cols:
+            batch_op.add_column(sa.Column('authority_requirement', sa.String(), nullable=True))
 
     # F-07: Action timing persistence and continuity
-    op.add_column('governed_actions', sa.Column('execute_by', sa.String(), nullable=True))
+    with op.batch_alter_table("governed_actions") as batch_op:
+        if 'execute_by' not in act_cols:
+            batch_op.add_column(sa.Column('execute_by', sa.String(), nullable=True))
 
     # F-08: Atomic decision/action/execution concurrency
-    op.create_index(
-        "uq_recorded_decision_per_rec", "governed_decisions", ["recommendation_id"],
-        unique=True, postgresql_where=sa.text("status = 'RECORDED'")
-    )
-    op.create_unique_constraint("uq_attempt_no", "governed_execution_attempts", ["action_id", "attempt_number"])
+    try:
+        op.create_index(
+            "uq_recorded_decision_per_rec", "governed_decisions", ["recommendation_id"],
+            unique=True, postgresql_where=sa.text("status = 'RECORDED'")
+        )
+    except Exception:
+        pass
+
+    try:
+        with op.batch_alter_table("governed_execution_attempts") as batch_op:
+            batch_op.create_unique_constraint("uq_attempt_no", ["action_id", "attempt_number"])
+    except Exception:
+        pass
+
 
 def downgrade() -> None:
-    op.drop_constraint("uq_attempt_no", "governed_execution_attempts", type_="unique")
-    op.drop_index("uq_recorded_decision_per_rec", table_name="governed_decisions")
+    try:
+        with op.batch_alter_table("governed_execution_attempts") as batch_op:
+            batch_op.drop_constraint("uq_attempt_no", type_="unique")
+    except Exception:
+        pass
+
+    try:
+        op.drop_index("uq_recorded_decision_per_rec", table_name="governed_decisions")
+    except Exception:
+        pass
     
-    op.drop_column('governed_actions', 'execute_by')
-    op.drop_column('governed_recommendations', 'authority_requirement')
-    op.drop_column('governed_decisions', 'override_indicator')
-    op.drop_column('governed_decisions', 'authority_basis')
-    op.drop_column('governed_decisions', 'reason')
+    with op.batch_alter_table("governed_actions") as batch_op:
+        batch_op.drop_column('execute_by')
+    with op.batch_alter_table("governed_recommendations") as batch_op:
+        batch_op.drop_column('authority_requirement')
+    with op.batch_alter_table("governed_decisions") as batch_op:
+        batch_op.drop_column('override_indicator')
+        batch_op.drop_column('authority_basis')
+        batch_op.drop_column('reason')

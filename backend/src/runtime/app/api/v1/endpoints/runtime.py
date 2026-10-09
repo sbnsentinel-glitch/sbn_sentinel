@@ -29,9 +29,16 @@ def get_runtime_status(
 
     # Analyze Practice Fusion (EHR Capability)
     from app.services.connector_manager import connector_runtime_state
-    pf_state = connector_runtime_state.get("PRACTICE_FUSION")
+    pf_in_db = any("practice" in (c.name or "").lower() or c.id == "PRACTICE_FUSION" for c in connectors)
+    if not pf_in_db:
+        pf_state_cap = "UNCONFIGURED"
+        pf_last_ver = None
+    else:
+        pf_state = connector_runtime_state.get("PRACTICE_FUSION")
+        pf_state_cap = pf_state.capability_state
+        pf_last_ver = pf_state.last_verified_at
 
-    if pf_state.capability_state == "UNCONFIGURED":
+    if pf_state_cap == "UNCONFIGURED":
         # T01: PF absent -> UNAVAILABLE
         capabilities.append({
             "capability_id": "ehr_read",
@@ -42,17 +49,17 @@ def get_runtime_status(
             "retry_supported": False,
             "last_confirmed_at": None
         })
-    elif pf_state.capability_state in ["CONFIGURED", "AUTH_VERIFIED", "DEGRADED", "STALE"]:
+    elif pf_state_cap in ["CONFIGURED", "AUTH_VERIFIED", "DEGRADED", "STALE"]:
         # T02, T03: PF unhealthy or missing token -> DEGRADED/UNAVAILABLE
-        state = "UNAVAILABLE" if pf_state.capability_state in ["CONFIGURED", "STALE"] else "DEGRADED"
+        state = "UNAVAILABLE" if pf_state_cap in ["CONFIGURED", "STALE"] else "DEGRADED"
         capabilities.append({
             "capability_id": "ehr_read",
             "label": "EHR Data Retrieval",
             "state": state,
             "affected_scope": "Practice Fusion Sync",
             "can_continue": False,
-            "retry_supported": pf_state.capability_state in ["AUTH_VERIFIED", "DEGRADED"],
-            "last_confirmed_at": pf_state.last_verified_at.isoformat() + "Z" if pf_state.last_verified_at else None,
+            "retry_supported": pf_state_cap in ["AUTH_VERIFIED", "DEGRADED"],
+            "last_confirmed_at": pf_last_ver.isoformat() + "Z" if pf_last_ver else None,
             "diagnostic_ref": "CONN-PF"
         })
     else:
@@ -62,7 +69,7 @@ def get_runtime_status(
             "state": "READY",
             "can_continue": True,
             "retry_supported": False,
-            "last_confirmed_at": pf_state.last_verified_at.isoformat() + "Z" if pf_state.last_verified_at else None
+            "last_confirmed_at": pf_last_ver.isoformat() + "Z" if pf_last_ver else None
         })
 
     for c in connectors:

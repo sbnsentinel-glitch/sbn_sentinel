@@ -54,12 +54,15 @@ class EvidenceRepository:
     def store(self, evidence: OperationalEvidence):
         db = SessionLocal()
         try:
-            # Check if exists
+            db_fact_key = f"{evidence.fact_key}::{evidence.evidence_id}" if "::" not in evidence.fact_key else evidence.fact_key
+
+            # 1. Check if exists by exact evidence_id
             existing = db.query(EvidenceModel).filter(
-                EvidenceModel.evidence_id == evidence.evidence_id).first()
+                EvidenceModel.evidence_id == evidence.evidence_id
+            ).first()
             if existing:
                 existing.canonical_entity = evidence.canonical_entity
-                existing.fact_key = evidence.fact_key
+                existing.fact_key = db_fact_key
                 existing.fact_value_str = str(
                     evidence.fact_value) if evidence.fact_value is not None else None
                 existing.source_connector = evidence.source_connector
@@ -69,25 +72,47 @@ class EvidenceRepository:
                     evidence.metadata) if evidence.metadata else None
                 existing.version = evidence.version
                 existing.previous_version_id = evidence.previous_version_id
-            else:
-                new_model = EvidenceModel(
-                    evidence_id=evidence.evidence_id,
-                    canonical_entity=evidence.canonical_entity,
-                    fact_key=evidence.fact_key,
-                    fact_value_str=str(
-                        evidence.fact_value) if evidence.fact_value is not None else None,
-                    source_connector=evidence.source_connector,
-                    retrieval_timestamp=evidence.retrieval_timestamp,
-                    evidence_type=evidence.evidence_type,
-                    metadata_json=json.dumps(
-                        evidence.metadata) if evidence.metadata else None,
-                    version=evidence.version,
-                    previous_version_id=evidence.previous_version_id)
-                db.add(new_model)
+                db.commit()
+                return
+
+            # 2. Add new record
+            new_model = EvidenceModel(
+                evidence_id=evidence.evidence_id,
+                canonical_entity=evidence.canonical_entity,
+                fact_key=db_fact_key,
+                fact_value_str=str(
+                    evidence.fact_value) if evidence.fact_value is not None else None,
+                source_connector=evidence.source_connector,
+                retrieval_timestamp=evidence.retrieval_timestamp,
+                evidence_type=evidence.evidence_type,
+                metadata_json=json.dumps(
+                    evidence.metadata) if evidence.metadata else None,
+                version=evidence.version,
+                previous_version_id=evidence.previous_version_id)
+            db.add(new_model)
             db.commit()
             logger.debug(f"[ERRM] Stored evidence {evidence.evidence_id} in DB")
         except Exception as e:
             db.rollback()
+            if "UNIQUE constraint failed" in str(e) or "IntegrityError" in str(type(e).__name__):
+                # Handle IntegrityError as idempotent duplicate
+                try:
+                    existing = db.query(EvidenceModel).filter(
+                        EvidenceModel.source_connector == evidence.source_connector,
+                        EvidenceModel.fact_key == db_fact_key
+                    ).first()
+                    if existing:
+                        existing.fact_value_str = str(evidence.fact_value) if evidence.fact_value is not None else None
+                        existing.retrieval_timestamp = evidence.retrieval_timestamp
+                        if evidence.evidence_type:
+                            existing.evidence_type = evidence.evidence_type
+                        if evidence.metadata:
+                            existing.metadata_json = json.dumps(evidence.metadata)
+                        db.commit()
+                        logger.debug(f"[ERRM] Idempotently updated evidence {evidence.evidence_id} in DB")
+                        return
+                except Exception:
+                    db.rollback()
             logger.error(f"[ERRM] Failed to store evidence {evidence.evidence_id}: {e}")
             from app.core.exceptions import PersistenceError
             raise PersistenceError(f"Database error storing evidence: {e}")
@@ -99,10 +124,11 @@ class EvidenceRepository:
         try:
             model = db.query(EvidenceModel).filter(EvidenceModel.evidence_id == evidence_id).first()
             if model:
+                raw_fact_key = model.fact_key.split("::")[0] if model.fact_key and "::" in model.fact_key else model.fact_key
                 return OperationalEvidence(
                     evidence_id=model.evidence_id,
                     canonical_entity=model.canonical_entity,
-                    fact_key=model.fact_key,
+                    fact_key=raw_fact_key,
                     fact_value=model.fact_value_str,
                     source_connector=model.source_connector,
                     retrieval_timestamp=model.retrieval_timestamp,

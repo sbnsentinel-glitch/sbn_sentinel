@@ -222,4 +222,74 @@ describe('D8 History & Reproducibility Tests', () => {
         expect(screen.getByText(/\(vV1\)/i)).toBeTruthy();
         expect(screen.queryByText(/undefined/i)).toBeNull();
     });
+
+    it('AT-17: switching between two journeys never displays previous reproduction result', async () => {
+        let resolveJourney2: any;
+        const journey2Promise = new Promise<HistoricalContextResponse>((resolve) => {
+            resolveJourney2 = resolve;
+        });
+
+        const mockContext1: HistoricalContextResponse = {
+            anchor: { object_type: 'journey', object_id: 'JNY-1', journey_id: 'JNY-1', mode: 'historical' },
+            technical_state: 'valid',
+            bindings: {
+                evidence_refs: [], decision_context_id: 'CTX-1', policy: null, rule_evaluations: [],
+                recommendations: [{ recommendation_id: 'REC-001', mapping_id: 'MAP-1', mapping_version: 'V1', status: 'active', generated_at: '2026-09-23T12:00:00Z' }],
+                decisions: [], actions: []
+            }
+        };
+
+        vi.spyOn(historyApi, 'getHistoricalJourney').mockImplementation(async (jId) => {
+            if (jId === 'JNY-1') return mockContext1;
+            return journey2Promise;
+        });
+
+        vi.spyOn(historyApi, 'reproduceDecision').mockResolvedValue({
+            status: 'MATCH',
+            recommendation_id: 'REC-001',
+            original: { action: 'Old Action' },
+            reproduced: { action: 'Old Action' },
+            differences: [],
+            diagnostic: null
+        });
+
+        const { rerender } = render(<HistoricalTraceSection journeyId="JNY-1" />);
+        fireEvent.click(screen.getByRole('button', { name: /D8 Historical Trace/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('Exact Match')).toBeTruthy();
+        });
+
+        // Switch to Journey 2 (still loading)
+        rerender(<HistoricalTraceSection journeyId="JNY-2" />);
+
+        // Previous reproduction result MUST be cleared immediately
+        expect(screen.queryByText('Exact Match')).toBeNull();
+    });
+
+    it('AT-30: 401/403/404/500/non-JSON/malformed JSON cannot be rendered as successful history DTO', async () => {
+        const fetchSpy = vi.spyOn(global, 'fetch');
+
+        // Test non-JSON response
+        fetchSpy.mockResolvedValueOnce(new Response('<html>Error</html>', {
+            status: 200,
+            headers: { 'Content-Type': 'text/html' }
+        }));
+        await expect(historyApi.getHistoricalRecommendation('REC-1')).rejects.toThrow('Invalid response type');
+
+        // Test 500 error
+        fetchSpy.mockResolvedValueOnce(new Response('Server error', {
+            status: 500,
+            headers: { 'Content-Type': 'text/plain' }
+        }));
+        await expect(historyApi.getHistoricalJourney('JNY-1')).rejects.toThrow();
+
+        // Test 401 Unauthorized
+        fetchSpy.mockResolvedValueOnce(new Response('Unauthorized', {
+            status: 401,
+            headers: { 'Content-Type': 'text/plain' }
+        }));
+        await expect(historyApi.reproduceDecision('REC-1')).rejects.toThrow();
+    });
 });
+
