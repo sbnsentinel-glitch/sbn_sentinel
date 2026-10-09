@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 /**
  * F-33 / AT-33: Automated release policy gate for dependency vulnerabilities.
