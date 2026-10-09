@@ -1,11 +1,7 @@
 import pytest
-import asyncio
 import httpx
-import respx
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, MagicMock, AsyncMock
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from app.db.database import SessionLocal
 from app.models.connector import ConnectorModel
@@ -15,8 +11,8 @@ from app.services.ingress_service import canonical_ingress, _extract_canonical_f
 from app.services.cursor_store import cursor_store, CursorModel
 from app.integrations.fhir.bundle_pager import BundlePager, UntrustedPaginationUrl
 from app.integrations.fhir.capability_snapshot import CapabilitySnapshot, ResourceCapability
-from app.integrations.auth.jwt_client_assertion import JwtClientAssertionAuth, TokenLease
-from app.integrations.core.transport import HttpTransport, RateLimitedException, parse_retry_after
+from app.integrations.auth.jwt_client_assertion import TokenLease
+from app.integrations.core.transport import HttpTransport, parse_retry_after
 from app.connectors.base_connector import ConnectorException
 from app.integrations.vendors.practice_fusion.adapter import PracticeFusionAdapter
 from app.integrations.vendors.practice_fusion.manifest import PracticeFusionManifest
@@ -346,6 +342,7 @@ async def test_at27_stream_interruption_and_synthetic_second_adapter():
         class SyntheticEpicAdapter(IntegrationAdapter):
             async def get_capability_statement(self):
                 return {"type": "Epic"}
+
             async def get_resource(self, resource_type, query_params=None):
                 return [{"id": "EPIC-1"}]
 

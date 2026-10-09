@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Integer, UniqueConstraint
 from app.db.database import Base, SessionLocal
 from datetime import datetime, timezone
 
+
 class CursorModel(Base):
     __tablename__ = "sync_cursors"
     __table_args__ = (
@@ -11,6 +12,7 @@ class CursorModel(Base):
     connector_id = Column(String, nullable=False, index=True)
     resource_type = Column(String, nullable=False)
     checkpoint = Column(String, nullable=False)
+
 
 def _normalize_date(date_str: str) -> str:
     try:

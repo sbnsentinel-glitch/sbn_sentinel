@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlparse
 
 logger = logging.getLogger(__name__)
 
+
 class UntrustedPaginationUrl(Exception):
     pass
 
@@ -65,7 +66,7 @@ class BundlePager:
                     url = next_url
                 else:
                     url = None
-                
+
                 current_params = None  # Params are typically embedded in the next link
 
             except Exception as e:
