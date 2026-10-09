@@ -1,17 +1,32 @@
 from typing import Dict, Any, List, AsyncGenerator
 import logging
-from urllib.parse import urljoin, urlparse
+from app.integrations.fhir.url_validator import (
+    UntrustedExternalUrl,
+    UntrustedPaginationUrl,
+    validate_fhir_url,
+)
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "BundlePager",
+    "InvalidFHIRResponse",
+    "UntrustedExternalUrl",
+    "UntrustedPaginationUrl",
+]
 
-class UntrustedPaginationUrl(Exception):
+
+class InvalidFHIRResponse(Exception):
+    """Raised when a FHIR search response is not a valid Bundle or is malformed."""
     pass
 
 
 class BundlePager:
     """
-    Handles generic FHIR Bundle pagination using standard 'next' links.
+    Handles generic FHIR Bundle pagination for search operations using standard 'next' links.
+    Validates that:
+    1. The response is a valid FHIR Bundle.
+    2. Any 'next' pagination link stays strictly within the approved FHIR origin.
     """
 
     def __init__(self, transport, headers: Dict[str, str], auth=None):
@@ -34,8 +49,7 @@ class BundlePager:
         """
         url = initial_url
         current_params = params
-        parsed_init = urlparse(initial_url)
-        approved_origin = (parsed_init.scheme, parsed_init.netloc)
+        approved_base_url = initial_url
 
         while url:
             if self.auth and hasattr(self.auth, "get_valid_token"):
@@ -45,9 +59,11 @@ class BundlePager:
                 response = await self.transport.get(url, headers=self.headers, params=current_params)
                 data = response.json()
 
-                if data.get("resourceType") != "Bundle":
-                    yield [data]
-                    break
+                if not isinstance(data, dict) or data.get("resourceType") != "Bundle":
+                    res_type = data.get("resourceType") if isinstance(data, dict) else "unknown"
+                    raise InvalidFHIRResponse(
+                        f"FHIR search response must be a Bundle, got '{res_type}'"
+                    )
 
                 entries = data.get("entry", [])
                 resources = [entry.get("resource", {}) for entry in entries if entry.get("resource")]
@@ -56,14 +72,13 @@ class BundlePager:
                     yield resources
 
                 # Find next page link
-                next_link = next((link.get("url") for link in data.get("link", []) if link.get("relation") == "next"), None)
+                next_link = next(
+                    (link.get("url") for link in data.get("link", []) if link.get("relation") == "next"),
+                    None
+                )
                 if next_link:
-                    next_url = urljoin(url, next_link)
-                    if approved_origin[0] and approved_origin[1]:
-                        parsed_next = urlparse(next_url)
-                        if (parsed_next.scheme, parsed_next.netloc) != approved_origin:
-                            raise UntrustedPaginationUrl(f"Cross-origin pagination link rejected: {next_url}")
-                    url = next_url
+                    # Enforce shared URL trust boundary
+                    url = validate_fhir_url(next_link, approved_base_url)
                 else:
                     url = None
 

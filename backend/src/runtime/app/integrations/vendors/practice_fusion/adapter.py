@@ -102,7 +102,7 @@ class PracticeFusionAdapter(IntegrationAdapter):
         from app.integrations.fhir.discovery import SmartDiscovery
         from app.integrations.fhir.bundle_pager import BundlePager
         from app.integrations.core.transport import HttpTransport
-        from app.services.cursor_store import cursor_store
+        from app.services.cursor_store import cursor_store, parse_fhir_instant
         from app.services.ingress_service import canonical_ingress
 
         base_url = await self._resolve_base_url()
@@ -159,6 +159,7 @@ class PracticeFusionAdapter(IntegrationAdapter):
 
             url = f"{base_url}/{resource_type}"
             newest_checkpoint = checkpoint
+            newest_dt = parse_fhir_instant(checkpoint) if checkpoint else None
 
             # Process in bounded batches (page by page) instead of loading all pages into memory
             async for batch in pager.iterate(url, params):
@@ -176,8 +177,15 @@ class PracticeFusionAdapter(IntegrationAdapter):
                     )
                     last_updated = r.get("meta", {}).get("lastUpdated")
                     if last_updated:
-                        if not newest_checkpoint or last_updated > newest_checkpoint:
-                            newest_checkpoint = last_updated
+                        try:
+                            candidate = parse_fhir_instant(last_updated)
+                            if newest_dt is None or candidate > newest_dt:
+                                newest_dt = candidate
+                                newest_checkpoint = candidate.isoformat()
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed parsing lastUpdated '{last_updated}': {e}"
+                            )
 
                 if canonical_records:
                     result = await canonical_ingress.submit_batch(

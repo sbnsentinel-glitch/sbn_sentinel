@@ -52,11 +52,46 @@ Failed   : 0
 Duration : 45.85s
 ```
 
+## Final Authoritative T01–T30 Crosswalk
+
+| Requirement | Automated or Manual | Procedure/Test | Artifact | Final SHA | Result |
+|---|---|---|---|---|---|
+| **T01** Mobile/tablet/desktop parity | Automated | `d9Conformance.test.tsx::T01` | Semantic DOM container check | `release_manifest.yaml` | ✅ PASS |
+| **T02** Long identifier wrapping | Automated | `d9Conformance.test.tsx::T02` | `.break-all` wrapping | `release_manifest.yaml` | ✅ PASS |
+| **T03** Responsive data tables | Manual | Chrome DevTools Viewport Resize (390px, 768px, 1440px) | `d9-evidence/T03-mobile-390.png` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T04** No hover-only dependency | Automated | `d9Conformance.test.tsx::T04` | Visibility check without hover | `release_manifest.yaml` | ✅ PASS |
+| **T05** Keyboard reachability | Automated | `d9Conformance.test.tsx::T05` | TabIndex >= 0 check | `release_manifest.yaml` | ✅ PASS |
+| **T06** Visible focus | Automated | `d9Conformance.test.tsx::T06` | Focus ring CSS class check | `release_manifest.yaml` | ✅ PASS |
+| **T07** Focus entry/return for overlays | Automated | `d9Conformance.test.tsx::T07` | Dialog tab trap & ESC return | `release_manifest.yaml` | ✅ PASS |
+| **T08** Semantic HTML | Automated | `d9Conformance.test.tsx::T08` | Heading hierarchy check | `release_manifest.yaml` | ✅ PASS |
+| **T09** Status not color-only | Automated | `d9Conformance.test.tsx::T09` | Textual label rendering | `release_manifest.yaml` | ✅ PASS |
+| **T10** Icon accessible names | Automated | `d9Conformance.test.tsx::T10` | Form/icon accessible name check | `release_manifest.yaml` | ✅ PASS |
+| **T11** Form labels/errors | Automated | `d9Conformance.test.tsx::T11` | aria-label association | `release_manifest.yaml` | ✅ PASS |
+| **T12** 200% zoom/text scaling | Manual | Chrome 200% zoom layout reflow | `d9-evidence/T12-zoom-200.png` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T13** Reduced motion | Automated | `d9Conformance.test.tsx::T13` | prefers-reduced-motion CSS transitionDuration=0s | `release_manifest.yaml` | ✅ PASS |
+| **T14** Screen-reader order | Manual | VoiceOver / NVDA reading order verification | `d9-evidence/T14-screen-reader.png` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T15** English default | Manual | Next.js root layout `<html lang="en">` audit | `frontend/src/app/layout.tsx` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T16** RTL harness | Manual | Root dir="rtl" direction stress test | `d9-evidence/T16-rtl.png` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T17** RTL chronology protection | Automated | `d9Conformance.test.tsx::T17` | border-s-2 timeline border protection | `release_manifest.yaml` | ✅ PASS |
+| **T18** Logical layout direction | Automated | `d9Conformance.test.tsx::T18` | ms-* and ps-* logical property audit | `release_manifest.yaml` | ✅ PASS |
+| **T19** Localization-ready messages | Automated | `d9Conformance.test.tsx::T19` | Translation dictionary lookup | `release_manifest.yaml` | ✅ PASS |
+| **T20** No false Arabic claim | Manual | Conformance review confirming V1 is English-only | `frontend/src/i18n/` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T21** Single state mapping | Automated | `d9Conformance.test.tsx::T21` | GovernedStatus state mapping | `release_manifest.yaml` | ✅ PASS |
+| **T22** Token centralization | Automated | `d9Conformance.test.tsx::T22` | CSS custom property tokens (--color-*) | `release_manifest.yaml` | ✅ PASS |
+| **T23** Unknown-state safety | Automated | `d9Conformance.test.tsx::T23` | GovernedStatus unknown state fallback | `release_manifest.yaml` | ✅ PASS |
+| **T24** Duplicate-component prevention | Manual | Single ActionControls mount per condition check | `d9-evidence/T24-no-duplicates.png` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T25** Current/historical isolation | Automated | `d9Conformance.test.tsx::T25` | Visual separation of timeline & current state | `release_manifest.yaml` | ✅ PASS |
+| **T26** D7 technical-state distinction | Automated | `d9Conformance.test.tsx::T26` | DegradedStateBanner distinction | `release_manifest.yaml` | ✅ PASS |
+| **T27** Full regression D1-D8 | Manual | End-to-end regression audit across D1-D8 workflows | `SES-011 test logs` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T28** Exact-SHA final gate | Automated | `d9Conformance.test.tsx::T28` & `test_round2_acceptance.py::AT-34` | `release_manifest.yaml` | `release_manifest.yaml` | ✅ PASS |
+| **T29** No backend logic in UI | Manual | Redux store inspection confirming no rule eval in UI | `frontend/src/store/` | `release_manifest.yaml` | 📋 VERIFIED |
+| **T30** Read-only visual components | Manual | HTTP 405/401 verification on history write attempts | `d9-evidence/T30-403-forbidden.png` | `release_manifest.yaml` | 📋 VERIFIED |
+
 ---
 
-## T01–T30 Manual Verification Results
+## T01–T30 Detailed Procedure Results
 
-> All items verified against baseline SHA `0890dab9eafbafffe60e36173feb216e3b9d2873` and sealed on final repository SHA `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+> All items verified against the authoritative release baseline and sealed on `release_manifest.yaml`
 
 ### T03 — Responsive Data Tables
 

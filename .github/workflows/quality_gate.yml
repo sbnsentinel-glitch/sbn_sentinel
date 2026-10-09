@@ -94,6 +94,14 @@ jobs:
       run: |
         pytest tests/integration/test_d9_universal_api.py tests/integration/test_d9_pf_api.py -v
 
+    - name: Round 2 Acceptance Verification
+      env:
+        SECRET_KEY: "test-secret-key-for-ci"
+        JWT_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEAsj5A9dQplDwdb9r36Bd5jd/LCMA5Zr1c9/eh+0nfmR9BRa6m\ntnJGQoB6o7anFRWAOKRZk7ptT/eMB6SeP3o3f3HOISj+AsmjUvwqlgc9eqdHK/uI\nE3uyXgYRzM2HETB6wMbi49AzfNOVs6/kMRPvwb3A6Lrvor2JMzTxiUeFshKKbsdH\nRK1Cokklxdc+SsTjD9nCiDXLmkmiabeyOz5rBV+u+GZHxFjpqxccTCH1VuZit4DP\nvIlvNw6xu/NEWBijlnp8UE+aBW+pbXWTpbUPyrLGaxQBs/me3GJtDSN7HHgCNlCE\nhankYCaLKL8GbraFR5qqnKd5vPwnHuDZSEldPwIDAQABAoIBABgsSTMNqvXnkTZy\nQ9y+EkYja62sJBzC4bDfbKBfzGs/yeJhZUqpBM5QDlHVm6NIXzNPVraqOdj2gY8n\nzC5frNcj4AivPoOyROwkNsJSCQxxUz2rxzCdPftyZ0eXOBIkuQEb9/ldax4qs8rC\nt/fP9FwaF+d4MrenbMv9CiTMBl232/ZuUX4CifTzkWrVLm1iCI4yAHHWvRvHqUjH\n+SNBM/mRAEg4/TIfJ8ATMg6cgjlIhec2rhjr7QkFJrnj2XnPLnFWTihRB2eSUSL3\nlMdUorwOkHbyrX7cLh9u1Xr8zScW0R5eSEpqVpD71gabPbhmyJ4lsDdPDh1t12gp\nNA6Kz0ECgYEA4ebLDBdSngw7MZZ6pf/Q/N9cnNo24TaUDRKRGgAEScSEhFxaQz/H\nm7+f5ISrYjBEO7fAi+rvJKumrUB5V2+3Uv5rJjnvmWdtvOHknV5C/M4kSU9gAPbT\n8yImYcTcv2YGDJeqOHhwc6254n4WzOgcwV6Jn+awUN9CK2rRy5y6+/0CgYEAyf3l\na+b1fPfTPjJlxoixXcW6tZVdMF2Ut6klKCcc42uSTK1KxF7iIQJsU5u5X5mJD0Xl\n5r1EZvl8TVLY/kHD7bpBlUNUuD9BCh4YOkkEkFEVneZiiRrhjXAgQHUkoGkjnBD0\n6PMcYO654QzH5gH6SH33+Q4CEE/nAcB77Akj/OsCgYBt3THI+prKlMZBEp8plmWM\nZhEDk7j3BPUx+mKpU3LCcZnFSaj4Zc9tNt/LYp57TWAR7wbsxWBy5CxWvDGHTaTJ\n70QrPigB4mRjZTUrN8m6a4MISFs3fNONvoEOMZDuYO72NtipSCHgkJAD0DDEjOpX\nPOQP6UC8xCfJN9U6gkoJ/QKBgG/MEBv9s+fb/tZQ7JXK+GhPVTzFk9N+KB7TBpbH\ntyyEUHASBezUG1Jr1escqKgqAXsrk8h2/xIDifH+Jc3sNnYwfbYQkyZ7FBN2frBb\n06PQzScc6XK7JxWydpdWftQt/SCXHgaE8DMSTl0qRsWeWJmg5wu43hmLL+9/Stdk\nY7/LAoGAHpo7T7YdcD2s0+ojAb8tTgl4cNwczSX/ZRoIjq5qxYwNDGa8BbQabMW/\nICXu5yVcqSf5srq+4GoE4RwUxurgElLR2bkfU9tVJRGPn/gXyUekrUaG/ED9bnmB\nfX3fAAPC6htFo6K9mSC3aBpVQ00qPz6c9jzBngeveDaPxxa0f1c=\n-----END RSA PRIVATE KEY-----"
+        PYTHONPATH: "src/runtime"
+      run: |
+        pytest tests/integration/test_round2_acceptance.py -v
+
   frontend-quality:
     name: Frontend Quality Assurance
     runs-on: ubuntu-latest

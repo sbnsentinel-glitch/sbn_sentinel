@@ -128,22 +128,56 @@ class JwtClientAssertionAuth(AuthStrategy):
             )
 
         access_token = str(token_json["access_token"])
-        token_type = str(token_json.get("token_type", "Bearer"))
+
+        # Token type must be present and supported (Bearer)
+        token_type = token_json.get("token_type")
+        if not token_type or str(token_type).lower() != "bearer":
+            raise ConnectorException(
+                f"Unsupported token type: {token_type}",
+                failure_code="AUTHENTICATION_FAILED",
+            )
+
+        # Expiry must be a valid integer
         try:
-            expires_in = int(token_json.get("expires_in", 300))
-        except (ValueError, TypeError):
-            expires_in = 300
+            expires_in = int(token_json["expires_in"])
+        except (KeyError, ValueError, TypeError):
+            raise ConnectorException(
+                "Invalid token expiry",
+                failure_code="AUTHENTICATION_FAILED",
+            )
+
+        # Granted scopes must satisfy required minimum scopes
+        if self.scopes:
+            raw_scope = token_json.get("scope")
+            if not raw_scope:
+                raise ConnectorException(
+                    "Required scopes were not granted: missing scope in response",
+                    failure_code="AUTHORIZATION_FAILED",
+                )
+            if isinstance(raw_scope, str):
+                granted = set(raw_scope.split())
+            elif isinstance(raw_scope, (list, set)):
+                granted = set(raw_scope)
+            else:
+                granted = set()
+
+            required = set(self.scopes)
+            if not required.issubset(granted):
+                raise ConnectorException(
+                    f"Required scopes were not granted: missing {required - granted}",
+                    failure_code="AUTHORIZATION_FAILED",
+                )
+            granted_scopes = list(granted)
+        else:
+            raw_scope = token_json.get("scope", "")
+            if isinstance(raw_scope, str):
+                granted_scopes = raw_scope.split() if raw_scope else []
+            elif isinstance(raw_scope, (list, set)):
+                granted_scopes = list(raw_scope)
+            else:
+                granted_scopes = []
 
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-
-        # Granted scopes
-        raw_scope = token_json.get("scope", "")
-        if isinstance(raw_scope, str):
-            granted_scopes = raw_scope.split() if raw_scope else self.scopes
-        elif isinstance(raw_scope, list):
-            granted_scopes = raw_scope
-        else:
-            granted_scopes = self.scopes
 
         lease = TokenLease(
             access_token=access_token,

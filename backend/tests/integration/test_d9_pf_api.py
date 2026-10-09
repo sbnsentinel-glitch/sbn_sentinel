@@ -84,6 +84,7 @@ async def test_pf01_smart_discovery(mock_encode, pf_config):
                 "access_token": "discovered_token",
                 "token_type": "Bearer",
                 "expires_in": 300,
+                "scope": "system/Patient.read system/Encounter.read system/Coverage.read",
             },
         )
     )
@@ -156,6 +157,7 @@ async def test_pf02_system_app_exchange(mock_encode, pf_config):
                 "access_token": "abc123",
                 "token_type": "Bearer",
                 "expires_in": 300,
+                "scope": "system/Patient.read system/Encounter.read",
             },
         )
     )
@@ -284,7 +286,7 @@ async def test_pf05_patient_bundle(mock_encode, pf_config):
     respx.post(f"{real_base}/auth/token").mock(
         return_value=httpx.Response(
             200,
-            json={"access_token": "test_token", "token_type": "Bearer"},
+            json={"access_token": "test_token", "token_type": "Bearer", "expires_in": 300},
         )
     )
 

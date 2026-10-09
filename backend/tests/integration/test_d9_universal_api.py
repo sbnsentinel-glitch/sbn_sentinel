@@ -304,7 +304,7 @@ async def test_u13_capability_gating():
 async def test_u14_secret_safety(mock_encode):
     """U14: Verify private key is not exposed in authenticate() return value."""
     respx.post("https://mock.com/auth").respond(
-        json={"access_token": "token123"}
+        json={"access_token": "token123", "token_type": "Bearer", "expires_in": 300}
     )
     mock_encode.return_value = "mock_jwt_token"
     auth = JwtClientAssertionAuth("test_client", "test_key", "test_kid", "https://mock.com/auth")
