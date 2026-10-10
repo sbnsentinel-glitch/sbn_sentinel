@@ -277,19 +277,34 @@ describe('D8 History & Reproducibility Tests', () => {
         }));
         await expect(historyApi.getHistoricalRecommendation('REC-1')).rejects.toThrow('Invalid response type');
 
-        // Test 500 error
-        fetchSpy.mockResolvedValueOnce(new Response('Server error', {
-            status: 500,
-            headers: { 'Content-Type': 'text/plain' }
+        // Test malformed JSON object
+        fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ notAnObject: 123 }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
         }));
-        await expect(historyApi.getHistoricalJourney('JNY-1')).rejects.toThrow();
+        await expect(historyApi.getHistoricalRecommendation('REC-1')).rejects.toThrow('Missing required \'anchor\' object');
 
-        // Test 401 Unauthorized
-        fetchSpy.mockResolvedValueOnce(new Response('Unauthorized', {
-            status: 401,
-            headers: { 'Content-Type': 'text/plain' }
+        // Test missing required fields
+        fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+            anchor: { object_type: 'recommendation', object_id: 'R1', journey_id: 'J1', mode: 'test' }
+            // missing technical_state and bindings
+        }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
         }));
-        await expect(historyApi.reproduceDecision('REC-1')).rejects.toThrow();
+        await expect(historyApi.getHistoricalJourney('JNY-1')).rejects.toThrow('technical_state must be one of: valid, ambiguous, orphaned, tampered');
+
+        // Test wrong field types in ReproductionResult
+        fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+            status: 'MATCH',
+            recommendation_id: 'REC-1',
+            differences: "not-an-array", // should be array
+            diagnostic: null
+        }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        }));
+        await expect(historyApi.reproduceDecision('REC-1')).rejects.toThrow('differences must be an array');
     });
 });
 

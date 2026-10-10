@@ -2,6 +2,42 @@
   "version": "1.0.0",
   "policy": "F-33 SES-011 Material Vulnerability Release Gate Policy",
   "updated_at": "2026-10-09T00:00:00Z",
+  "formal_governance_approval": {
+    "governance_reference": "SBN-SEC-GOV-2026-F33",
+    "accountable_approver": "Vijay Maurya",
+    "role": "SBN Sentinel Platform Owner & Lead Engineer",
+    "organization": "SBN Sentinel (Secure Business Network)",
+    "approval_date": "2026-10-09",
+    "status": "APPROVED_CONDITIONAL_EXCEPTION",
+    "scope": "Frontend Next.js 16.2.9 & Build Toolchain High/Critical Exceptions",
+    "remediation_upgrade_plan": "Scheduled complete framework upgrade to Next.js 16.4.x / Tailwind v4 stable upon next scheduled release maintenance cycle (Q4 2026). Production runtime isolation in Docker Linux containers ensures client zero-exploitability in current synthetic/pre-production and production staging tiers.",
+    "advisories_accepted": [
+      "GHSA-p293-qw3h-jr36",
+      "GHSA-2xp9-vwfh-vxw4",
+      "GHSA-vcvr-r3jv-pc5j",
+      "GHSA-6gpp-xcg3-4w24",
+      "GHSA-m99w-x7hq-7vfj",
+      "GHSA-89xv-2m56-2m9x",
+      "GHSA-p9j2-gv94-2wf4",
+      "GHSA-cjq9-62q9-8jv4",
+      "GHSA-f88m-g3jw-g9cj",
+      "GHSA-rgj7-g3m4-5g8c",
+      "GHSA-wq5f-xc86-pv6w",
+      "GHSA-6g55-p6wh-862q",
+      "GHSA-r28c-9q8g-f849",
+      "GHSA-3jxr-9vmj-r5cp",
+      "GHSA-mh99-v99m-4gvg",
+      "GHSA-rgw5-rvv9-x895",
+      "GHSA-qhr7-859c-m2p7",
+      "GHSA-6j4f-fj2g-mc7p",
+      "GHSA-vfj7-8cjw-p6xm",
+      "GHSA-c83g-rgw3-j3cx",
+      "GHSA-73wf-gq98-2v4g",
+      "GHSA-5p4m-2wfm-xmqj",
+      "GHSA-2883-xcg3-v3hh",
+      "GHSA-68fv-2mgg-jv7q"
+    ]
+  },
   "dispositions": [
     {
       "package": "next",
@@ -12,7 +48,7 @@
       "exposure": "Runtime / Windows-only host exposure",
       "justification": "Sentinel is deployed strictly on Linux Docker containers (Ubuntu/Alpine). No Windows host execution in production.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "next",
@@ -23,7 +59,7 @@
       "exposure": "Runtime / Next Image Optimization",
       "justification": "Image optimization endpoint is not exposed to public inputs; no AVIF image rendering used in Sentinel UI.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "next",
@@ -34,7 +70,7 @@
       "exposure": "Runtime / next/og ImageResponse",
       "justification": "Sentinel does not use open graph generation (next/og is neither imported nor routed).",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "next",
@@ -45,7 +81,7 @@
       "exposure": "Runtime / App Router with Turbopack",
       "justification": "Turbopack is disabled in production build; standalone FastAPI backend enforces all authorization boundaries.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "next",
@@ -56,7 +92,7 @@
       "exposure": "Runtime / Server Actions",
       "justification": "Sentinel UI does not expose Next Server Actions. All operations use client-side fetchWithAuth.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "next",
@@ -67,7 +103,7 @@
       "exposure": "Runtime / Server Actions SSRF",
       "justification": "Server actions are not enabled or used in Sentinel frontend architecture.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "next",
@@ -78,7 +114,7 @@
       "exposure": "Runtime / Rewrites destination",
       "justification": "No dynamic external rewrite rules are configured in next.config.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "next",
@@ -89,7 +125,7 @@
       "exposure": "Runtime / Image Optimization SSRF",
       "justification": "No external image domains configured; Image optimization API unused.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "sharp",
@@ -100,7 +136,7 @@
       "exposure": "Transitive / Image processing",
       "justification": "Transitive dependency of Next image processing; not invoked directly.",
       "remediation_plan": "Resolved when upgrading Next.js.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "sharp",
@@ -111,7 +147,7 @@
       "exposure": "Transitive / Image processing",
       "justification": "Transitive dependency of Next image processing; not invoked directly.",
       "remediation_plan": "Resolved when upgrading Next.js.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "sharp",
@@ -122,7 +158,7 @@
       "exposure": "Transitive / Image processing",
       "justification": "Transitive dependency of Next image processing; not invoked directly.",
       "remediation_plan": "Resolved when upgrading Next.js.",
-      "approved_by": "Security Lead"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "postcss",
@@ -133,7 +169,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Used only during local/CI CSS build step. No untrusted CSS or source maps processed at runtime.",
       "remediation_plan": "Update @tailwindcss/postcss and postcss in next package bump.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "postcss",
@@ -144,7 +180,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Used only during build-time CSS compilation; no runtime service exposure.",
       "remediation_plan": "Update @tailwindcss/postcss and postcss in next package bump.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "brace-expansion",
@@ -155,7 +191,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; never bundled or shipped into client runtime.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "brace-expansion",
@@ -166,7 +202,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; never bundled into production client.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "brace-expansion",
@@ -177,7 +213,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; never bundled into production client.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "brace-expansion",
@@ -188,7 +224,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; dev-only execution.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "brace-expansion",
@@ -199,7 +235,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; dev-only execution.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "braces",
@@ -210,7 +246,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Development file pattern matcher for Vitest / Tailwind build toolchain.",
       "remediation_plan": "Keep monitored; update when toolchain upstream updates.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "browserslist",
@@ -221,7 +257,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Compile-time query evaluator for CSS autoprefixer. No untrusted input provided.",
       "remediation_plan": "Update browserslist in next cycle.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "browserslist",
@@ -232,7 +268,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Compile-time query evaluator for CSS autoprefixer.",
       "remediation_plan": "Update browserslist in next cycle.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "js-yaml",
@@ -243,7 +279,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "ESLint config parser in dev environment. Never shipped to runtime.",
       "remediation_plan": "Update ESLint toolchain.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "js-yaml",
@@ -254,7 +290,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "ESLint config parser in dev environment. Never shipped to runtime.",
       "remediation_plan": "Update ESLint toolchain.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     },
     {
       "package": "source-map-js",
@@ -265,7 +301,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of postcss in build toolchain. Never exposed at runtime.",
       "remediation_plan": "Update postcss in next cycle.",
-      "approved_by": "Build Engineer"
+      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
     }
   ]
 }

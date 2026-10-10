@@ -304,6 +304,94 @@ def test_at25_cursor_monotonicity_and_concurrency():
         db.close()
 
 
+@pytest.mark.asyncio
+async def test_at25_equal_timestamp_cursor_boundary_restart_recovery():
+    """
+    AT-25 Boundary Test:
+    - Two records sharing the exact same lastUpdated timestamp.
+    - Page 1 contains record 1; batch 1 persists and cursor commits.
+    - Crash occurs before second batch/page.
+    - On restart recovery with ge{checkpoint}, query re-reads from boundary,
+      idempotently deduplicates record 1, processes record 2.
+    - Both records exist in the repository after recovery.
+    """
+    db = SessionLocal()
+    connector_id = "PF-CRASH-TEST"
+    resource_type = "Patient"
+    same_ts = "2026-10-09T10:00:00Z"
+
+    record_1 = {
+        "id": "P-EQ-1",
+        "resourceType": "Patient",
+        "name": [{"family": "Smith"}],
+        "meta": {"lastUpdated": same_ts, "versionId": "v1"},
+    }
+    record_2 = {
+        "id": "P-EQ-2",
+        "resourceType": "Patient",
+        "name": [{"family": "Jones"}],
+        "meta": {"lastUpdated": same_ts, "versionId": "v2"},
+    }
+
+    try:
+        db.query(CursorModel).filter(CursorModel.connector_id == connector_id).delete()
+        db.query(EvidenceModel).filter(EvidenceModel.source_connector == connector_id).delete()
+        db.commit()
+
+        # Step 1: First sync run processes Page 1 (record 1)
+        checkpoint = cursor_store.get(connector_id, resource_type)
+        assert checkpoint is None
+
+        # Simulate batch 1 ingestion
+        batch_1 = [{"context_type": resource_type, "vendor": "Practice Fusion", "detail": record_1}]
+        res1 = await canonical_ingress.submit_batch(connector_id, batch_1)
+        assert res1["processed"] == 1
+
+        # Commit cursor for batch 1 (points to same_ts in UTC)
+        parsed_dt = parse_fhir_instant(same_ts)
+        cursor_store.commit(connector_id, resource_type, parsed_dt.isoformat())
+        saved_checkpoint = cursor_store.get(connector_id, resource_type)
+        assert saved_checkpoint == "2026-10-09T10:00:00+00:00"
+
+        # SIMULATE CRASH: Process crashes before batch 2 is fetched or committed!
+        # ... process restarts ...
+
+        # Step 2: Restart recovery
+        # Adapter checks cursor: retrieves checkpoint
+        restart_checkpoint = cursor_store.get(connector_id, resource_type)
+        assert restart_checkpoint == "2026-10-09T10:00:00+00:00"
+
+        # Boundary query uses ge{checkpoint} (safely including equal timestamps)
+        query_param = f"ge{restart_checkpoint}"
+        assert query_param == "ge2026-10-09T10:00:00+00:00"
+
+        # On rerun, Page 1 yields record 1 again (because ge is inclusive)
+        res_dup = await canonical_ingress.submit_batch(connector_id, batch_1)
+        # F-21 Idempotency deduplicates record 1 (no duplicate rows created)
+        assert res_dup["processed"] == 0
+
+        # Next page yields record 2 (which shares the exact same timestamp)
+        batch_2 = [{"context_type": resource_type, "vendor": "Practice Fusion", "detail": record_2}]
+        res2 = await canonical_ingress.submit_batch(connector_id, batch_2)
+        assert res2["processed"] == 1
+
+        cursor_store.commit(connector_id, resource_type, parsed_dt.isoformat())
+
+        # Step 3: Verify both records exist after recovery
+        saved_evidence = db.query(EvidenceModel).filter(
+            EvidenceModel.source_connector == connector_id
+        ).all()
+        assert len(saved_evidence) == 2
+        fact_values = [e.fact_value_str for e in saved_evidence]
+        assert any("P-EQ-1" in fv for fv in fact_values)
+        assert any("P-EQ-2" in fv for fv in fact_values)
+    finally:
+        db.query(CursorModel).filter(CursorModel.connector_id == connector_id).delete()
+        db.query(EvidenceModel).filter(EvidenceModel.source_connector == connector_id).delete()
+        db.commit()
+        db.close()
+
+
 # ============================================================================
 # AT-26: Token Lease and Transport Error Classification
 # ============================================================================
@@ -561,8 +649,15 @@ def test_at34_release_manifest_verification():
     with open(manifest_path, "r") as f:
         manifest = yaml.safe_load(f)["release_manifest"]
 
-    assert len(manifest["source_sha"]) >= 8
-    assert re.match(r"^[0-9a-f]{8,40}$", manifest["source_sha"])
+    expected_sha = os.environ.get("GITHUB_SHA")
+    if expected_sha:
+        assert manifest["source_sha"] == expected_sha, (
+            f"Manifest source_sha {manifest['source_sha']} does not match GITHUB_SHA {expected_sha}"
+        )
+    else:
+        assert len(manifest["source_sha"]) == 40
+        assert re.match(r"^[0-9a-f]{40}$", manifest["source_sha"])
+
     assert manifest["actual_deployed_backend_sha"] == manifest["source_sha"]
     assert manifest["actual_deployed_frontend_sha"] == manifest["source_sha"]
     assert manifest["final_alembic_revision"] == "f21_f25_constraints"

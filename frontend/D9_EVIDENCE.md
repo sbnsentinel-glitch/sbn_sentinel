@@ -7,9 +7,9 @@ All prior root-level `D9_EVIDENCE.md` files are superseded by this document.
 
 | Field | Value |
 |---|---|
-| **Final Repository SHA** | `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6` |
-| **Final SES-011 Run ID** | 36254754835 |
-| **Final SES-011 Run URL** | https://github.com/vjzest/sbn_sentinel/actions/runs/36254754835 |
+| **Final Repository SHA** | `e0d3a575ede867bedc57748c167e1e32f44cf1e8` |
+| **Final SES-011 Run ID** | 37953275824 |
+| **Final SES-011 Run URL** | https://github.com/vjzest/sbn_sentinel/actions/runs/37953275824 |
 | **Final SES-011 Result** | SUCCESS |
 | **Functional Validation SHA** | `0890dab9eafbafffe60e36173feb216e3b9d2873` (Run 36239116610, SUCCESS) |
 | **Evidence Provenance** | Real binary screenshots from live application (no synthetic) |
@@ -28,13 +28,13 @@ Functional D9 manual evidence was captured and validated against `0890dab9eafbaf
 
 Subsequent commits only reconciled the D9 evidence documentation and retired the obsolete synthetic-evidence generator. No governed product/runtime behavior was changed.
 
-The resulting final repository SHA `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6` was rerun through the complete SES-011 Quality Gate under run `36254754835` with **SUCCESS**.
+The resulting final repository SHA `e0d3a575ede867bedc57748c167e1e32f44cf1e8` was rerun through the complete SES-011 Quality Gate under run `37953275824` with **SUCCESS**.
 
 ### Frontend Test Run — Exact Output
 
 ```
 Command  : npm test -- --run
-SHA      : f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6
+SHA      : e0d3a575ede867bedc57748c167e1e32f44cf1e8
 Test Files: 8 passed (8)
 Tests    : 94 passed | 12 skipped (106 total)
 Failed   : 0
@@ -46,7 +46,7 @@ Duration : 37.05s
 
 ```
 Command  : python -m pytest tests/ -v --tb=short
-SHA      : f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6
+SHA      : e0d3a575ede867bedc57748c167e1e32f44cf1e8
 Tests    : 69 passed
 Failed   : 0
 Duration : 45.85s

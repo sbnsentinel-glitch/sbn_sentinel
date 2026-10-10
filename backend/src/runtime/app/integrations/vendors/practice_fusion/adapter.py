@@ -153,9 +153,9 @@ class PracticeFusionAdapter(IntegrationAdapter):
             checkpoint = cursor_store.get(self.connector_id, resource_type)
             params = {}
 
-            # Only use _lastUpdated param if server supports it
+            # Only use _lastUpdated param if server supports it (ge with idempotent deduplication)
             if checkpoint and capabilities.supports_last_updated(resource_type):
-                params["_lastUpdated"] = f"gt{checkpoint}"
+                params["_lastUpdated"] = f"ge{checkpoint}"
 
             url = f"{base_url}/{resource_type}"
             newest_checkpoint = checkpoint
