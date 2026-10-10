@@ -30,23 +30,6 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
 
-    - name: Synchronize Release Manifest Build SHA
-      run: |
-        python -c "
-        import yaml, os
-        path = '../release_manifest.yaml'
-        if os.path.exists(path):
-            with open(path, 'r') as f:
-                d = yaml.safe_load(f)
-            sha = os.environ.get('GITHUB_SHA')
-            if sha and 'release_manifest' in d:
-                d['release_manifest']['source_sha'] = sha
-                d['release_manifest']['actual_deployed_backend_sha'] = sha
-                d['release_manifest']['actual_deployed_frontend_sha'] = sha
-                with open(path, 'w') as f:
-                    yaml.dump(d, f)
-        "
-
     - name: SES-011 Linting (Flake8)
       run: |
         flake8 src/runtime/app/ tests/

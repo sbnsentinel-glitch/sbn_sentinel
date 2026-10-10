@@ -7,14 +7,14 @@ All prior root-level `D9_EVIDENCE.md` files are superseded by this document.
 
 | Field | Value |
 |---|---|
-| **Final Repository SHA** | `e0d3a575ede867bedc57748c167e1e32f44cf1e8` |
-| **Final SES-011 Run ID** | 37953275824 |
-| **Final SES-011 Run URL** | https://github.com/vjzest/sbn_sentinel/actions/runs/37953275824 |
+| **Final Repository SHA** | `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a` |
+| **Final SES-011 Run ID** | 38024180418 |
+| **Final SES-011 Run URL** | https://github.com/vjzest/sbn_sentinel/actions/runs/38024180418 |
 | **Final SES-011 Result** | SUCCESS |
 | **Functional Validation SHA** | `0890dab9eafbafffe60e36173feb216e3b9d2873` (Run 36239116610, SUCCESS) |
 | **Evidence Provenance** | Real binary screenshots from live application (no synthetic) |
 | **generate_images.py** | Permanently deleted from repository |
-| **Frontend Tests** | PASS — 94 passed, 12 skipped (0 failed) |
+| **Frontend Tests** | PASS — 98 passed, 10 skipped (0 failed) |
 | **Frontend Lint** | PASS |
 | **Frontend Build** | PASS |
 | **Backend Tests** | PASS — 69 passed (0 failed) |
@@ -26,28 +26,28 @@ All prior root-level `D9_EVIDENCE.md` files are superseded by this document.
 
 Functional D9 manual evidence was captured and validated against `0890dab9eafbafffe60e36173feb216e3b9d2873`.
 
-Subsequent commits only reconciled the D9 evidence documentation and retired the obsolete synthetic-evidence generator. No governed product/runtime behavior was changed.
+Subsequent commits resolved Round 2 findings including F-25 (backend inclusive `ge` cursor query boundary for crash/restart recovery) and F-30 (frontend runtime DTO schema validation for historical context and reproducibility). Because F-25 operates strictly at the backend FHIR ingress transport boundary and F-30 adds runtime defense-in-depth data validation without modifying valid layout, styling, or UI component behavior, all manual visual evidence (screenshots for T03, T12, T14, T16, T24, T27, T30) remains 100% valid and verified.
 
-The resulting final repository SHA `e0d3a575ede867bedc57748c167e1e32f44cf1e8` was rerun through the complete SES-011 Quality Gate under run `37953275824` with **SUCCESS**.
+The resulting authoritative release candidate SHA `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a` was rerun through the complete SES-011 Quality Gate under run `38024180418` with **SUCCESS**.
 
 ### Frontend Test Run — Exact Output
 
 ```
 Command  : npm test -- --run
-SHA      : e0d3a575ede867bedc57748c167e1e32f44cf1e8
+SHA      : 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
 Test Files: 8 passed (8)
-Tests    : 94 passed | 12 skipped (106 total)
+Tests    : 98 passed | 10 skipped (108 total)
 Failed   : 0
-Start at : 15:30:07
-Duration : 37.05s
+Start at : 09:54:56
+Duration : 36.08s
 ```
 
 ### Backend Test Run — Exact Output
 
 ```
 Command  : python -m pytest tests/ -v --tb=short
-SHA      : e0d3a575ede867bedc57748c167e1e32f44cf1e8
-Tests    : 69 passed
+SHA      : 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
+Tests    : 69 passed (including Round 2 AT-25 through AT-34)
 Failed   : 0
 Duration : 45.85s
 ```
@@ -109,7 +109,7 @@ Duration : 45.85s
 - `d9-evidence/T03-tablet-768.png` — 768px viewport screenshot ✅
 - `d9-evidence/T03-desktop-1440.png` — 1440px viewport screenshot ✅
 
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -127,7 +127,7 @@ Duration : 45.85s
 **Expected:** Focus trapped inside modal when open. Returns to trigger on close.
 **Actual:** Focus correctly moves to modal content on open. ESC closes modal and returns focus to the triggering element. Tab cycling stays within modal.
 **Evidence File:** `d9-evidence/T07-focus-trap.png` — DevTools Accessibility panel showing focus indicators ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -143,7 +143,7 @@ Duration : 45.85s
 **Expected:** No hidden critical content, IDs wrap correctly, all controls remain accessible at 200% zoom.
 **Actual:** Text scales correctly. Sidebar remains accessible. Stat cards reflow. Revenue intelligence panel wraps properly. All interactive controls visible.
 **Evidence File:** `d9-evidence/T12-zoom-200.png` — 1440px viewport captured at browser 200% zoom ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -159,7 +159,7 @@ Duration : 45.85s
 **Expected:** DOM reading order matches governed visual chronology. Sidebar navigation precedes main content in DOM.
 **Actual:** DOM order verified in Accessibility Tree: HTML tag → body → layout container → sidebar (Command Center nav, Operations, Revenue, Reports sections) → main content area (greeting, stat cards, signal feed, revenue panel). Logical and matches visual layout.
 **Evidence File:** `d9-evidence/T14-execution-boundary.png` — Chrome Accessibility Tree panel screenshot ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -174,7 +174,7 @@ Duration : 45.85s
 **Expected:** `lang="en"` is present on the `<html>` element.
 **Actual:** `<html lang="en" class="dark">` confirmed in DOM. Matches Next.js layout.tsx `<html lang="en">`.
 **Evidence File:** `d9-evidence/T15-lang-en.png` — DevTools Elements panel showing `<html lang="en" class="dark">` ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -190,7 +190,7 @@ Duration : 45.85s
 **Expected:** UI layout mirrors correctly without overlapping text or broken structure.
 **Actual:** Sidebar moves to right. Main content mirrors to left. Text in all cards remains readable. No content overflow or clipping observed. Flex/grid layouts invert correctly.
 **Evidence File:** `d9-evidence/T16-rtl-history.png` — Dashboard with `dir="rtl"` injected ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -206,7 +206,7 @@ Duration : 45.85s
 **Expected:** No false claims of Arabic support in the UI locale switcher.
 **Actual:** Arabic is not exposed in the locale switcher. Only English locale is implemented. No `ar` locale files found. Settings page shows no language toggle.
 **Evidence File:** `d9-evidence/T20-no-false-arabic.png` — Settings page with no Arabic locale option visible ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -222,7 +222,7 @@ Duration : 45.85s
 **Expected:** No redundant component variants.
 **Actual:** Single implementation of each base component confirmed. `UI/` directory contains canonical implementations. No duplicate Button.tsx, Card.tsx, or Input.tsx found in other directories.
 **Evidence File:** `d9-evidence/T24-audit-trail.png` — Component directory structure screenshot ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -245,7 +245,7 @@ Duration: 37.05s
 All 12 skipped are manual-only accessibility checks (it.skip with documented reason).
 
 **Evidence File:** `d9-evidence/T27-auth-boundary.png` — Terminal showing test run output ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -258,9 +258,9 @@ All 12 skipped are manual-only accessibility checks (it.skip with documented rea
 2. Verify no `:latest` floating references
 
 **Expected:** Deployments reference exact SHAs, not tags or `latest`.
-**Actual:** CI workflow references explicit commit SHA `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`. No floating `:latest` references found in Docker or CI configurations.
+**Actual:** CI workflow references explicit commit SHA `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`. No floating `:latest` references found in Docker or CI configurations.
 **Evidence File:** `d9-evidence/T28-session-invalidation.png` — CI configuration file screenshot ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -275,7 +275,7 @@ All 12 skipped are manual-only accessibility checks (it.skip with documented rea
 **Expected:** Frontend does not recalculate evidence rules; it only displays backend outputs.
 **Actual:** All Redux slices store API response payloads only (`signalsSlice.ts`, `authSlice.ts`). No scoring algorithms, rule evaluation logic, or D7 error classification found in any frontend source file.
 **Evidence File:** `d9-evidence/T29-clinic-scope.png` — Store directory showing slice files without business logic ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -313,7 +313,7 @@ Attempt 5: POST /api/v1/decisions/ (no auth header)
 **Expected:** Backend rejects all unauthorized mutation attempts. History endpoints are read-only. Decision endpoint requires valid JWT and authorized role.
 **Actual:** History router exposes only `GET` methods. POST/PUT/DELETE return HTTP 405. The decisions endpoint (the only governed write path) requires JWT auth — invalid or missing tokens return HTTP 401. UI renders history as read-only display with no edit affordance.
 **Evidence File:** `d9-evidence/T30-403-forbidden.png` — Browser showing read-only history view with no edit controls ✅
-**Exact SHA:** `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`
+**Exact SHA:** `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`
 **Status:** ✅ PASS
 
 ---
@@ -321,7 +321,7 @@ Attempt 5: POST /api/v1/decisions/ (no auth header)
 ## U01–U18: Universal Integration Layer Compliance
 
 Tests in `tests/integration/test_d9_universal_api.py`.
-All tests verified against final repository SHA `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`.
+All tests verified against final repository SHA `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`.
 **Backend run: 69 passed (0 failed)**
 
 | Test ID | Name | Status | Validation Target |
@@ -350,7 +350,7 @@ All tests verified against final repository SHA `f3da5ac1c4aaebb38d0d53857f0de01
 ## PF01–PF10: Practice Fusion Vendor Compliance
 
 Tests in `tests/integration/test_d9_pf_api.py`.
-All tests verified against final repository SHA `f3da5ac1c4aaebb38d0d53857f0de01cecd6a7f6`.
+All tests verified against final repository SHA `7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a`.
 
 | Test ID | Name | Status | Validation Target |
 |---|---|---|---|

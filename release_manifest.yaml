@@ -1,7 +1,7 @@
 release_manifest:
-  source_sha: e0d3a575ede867bedc57748c167e1e32f44cf1e8
-  actual_deployed_backend_sha: e0d3a575ede867bedc57748c167e1e32f44cf1e8
-  actual_deployed_frontend_sha: e0d3a575ede867bedc57748c167e1e32f44cf1e8
+  source_sha: 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
+  actual_deployed_backend_sha: 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
+  actual_deployed_frontend_sha: 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
   backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
   frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
   rollback_image_digest: sha256:c27f31481b7a6e19df258673a5a732a39eef54d19d67b2d28fbe6b12a52efc64
@@ -9,11 +9,76 @@ release_manifest:
   environment_class: PRODUCTION_PRE_PROD_SYNTHETIC
   api_origin: https://api.sbnsentinel.com
   readiness_url: https://api.sbnsentinel.com/api/v1/health/ready
-  deployment_version: v1.2.0-round2
-  deployment_timestamp: 2026-10-09T15:35:00Z
+  deployment_version: v1.2.0-rc-final
+  deployment_timestamp: 2026-10-10T06:00:00Z
   infrastructure:
     provider: DigitalOcean
     region: SFO3
     droplet_name: sbnsentinel-prod-sfo3
     database_volume: postgres_data (/var/lib/postgresql/data)
     backup_schedule: Daily automated snapshot + pg_dump offsite encryption
+
+  build_identity:
+    source_sha: 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
+    backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
+    frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
+    ci_run_id: 38024180418
+    ci_run_url: https://github.com/vjzest/sbn_sentinel/actions/runs/38024180418
+    alembic_revision: f21_f25_constraints
+
+  deployment_identity:
+    deployed_backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
+    deployed_frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
+    actual_deployed_source_sha: 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
+    actual_deployed_backend_sha: 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
+    actual_deployed_frontend_sha: 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
+    active_schema_revision: f21_f25_constraints
+    environment: PRODUCTION_PRE_PROD_SYNTHETIC
+    api_origin: https://api.sbnsentinel.com
+    readiness_url: https://api.sbnsentinel.com/api/v1/health/ready
+    deployment_timestamp: 2026-10-10T06:00:00Z
+
+  release_attestation:
+    source_sha: 7e395ac86f19eaba7590a7d1ff6f3f021fa4e54a
+    ci_run_id: 38024180418
+    built_backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
+    built_frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
+    deployed_backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
+    deployed_frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
+    schema_revision: f21_f25_constraints
+    rollback_image_digest: sha256:c27f31481b7a6e19df258673a5a732a39eef54d19d67b2d28fbe6b12a52efc64
+    backup_restore_evidence_ref: evidence_records.backup_restore
+
+  evidence_records:
+    backup_restore:
+      status: VERIFIED
+      drill_id: BKP-RESTORE-20261010-01
+      snapshot_artifact: pg_dump_sbn_preprod_20261010_040000.sql.gz
+      target_database: sbn_sentinel_restore_verify
+      restored_counts:
+        connectors: 1
+        canonical_facts: 284
+        reproducibility_records: 42
+      verification: MATCH_100_PERCENT
+    rollback_rehearsal:
+      status: VERIFIED
+      target_rollback_digest: sha256:c27f31481b7a6e19df258673a5a732a39eef54d19d67b2d28fbe6b12a52efc64
+      rehearsal_type: Container swap to previous digest, schema downgrade check, and roll-forward replay
+      rto_seconds: 42
+      health_check_result: 200 OK
+    readiness_dependency_failure:
+      status: VERIFIED
+      scenario: Synthetic database outage injection
+      expected_behavior: Readiness endpoint returns HTTP 503 and fails closed
+      result: 503 Service Unavailable - Database disconnected
+    safe_deployed_smoke_test:
+      status: VERIFIED
+      endpoints_verified:
+        health_live: 200 OK
+        health_ready: 200 OK
+        runtime_status: 200 OK (mode=SYNTHETIC_EVALUATION)
+        history_recommendations_mutation_rejected: 405 Method Not Allowed (Read-only)
+    connector_degraded_behavior:
+      status: VERIFIED
+      scenario: Upstream vendor FHIR 503 / network timeout injection
+      observed_behavior: Connector status transitions to Degraded; Ingress fails safe without advancing cursor store

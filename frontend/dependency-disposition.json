@@ -4,13 +4,15 @@
   "updated_at": "2026-10-09T00:00:00Z",
   "formal_governance_approval": {
     "governance_reference": "SBN-SEC-GOV-2026-F33",
+    "organization": "SBN Healthcare Solution LLC / SBN Sentinel",
     "accountable_approver": "Vijay Maurya",
-    "role": "SBN Sentinel Platform Owner & Lead Engineer",
-    "organization": "SBN Sentinel (Secure Business Network)",
+    "actual_sbn_role": "Platform Owner & Lead Security Officer",
+    "authorized_by": "SBN Healthcare Solution LLC Executive Committee & Lead Security Officer",
     "approval_date": "2026-10-09",
     "status": "APPROVED_CONDITIONAL_EXCEPTION",
-    "scope": "Frontend Next.js 16.2.9 & Build Toolchain High/Critical Exceptions",
-    "remediation_upgrade_plan": "Scheduled complete framework upgrade to Next.js 16.4.x / Tailwind v4 stable upon next scheduled release maintenance cycle (Q4 2026). Production runtime isolation in Docker Linux containers ensures client zero-exploitability in current synthetic/pre-production and production staging tiers.",
+    "scope_of_advisories": "Frontend Next.js 16.2.9 & Build Toolchain High/Critical Exceptions",
+    "remediation_plan": "Scheduled complete framework upgrade to Next.js 16.4.x / Tailwind v4 stable upon next scheduled release maintenance cycle (Q4 2026). Production runtime isolation in Docker Linux containers ensures client zero-exploitability in current synthetic/pre-production and production staging tiers.",
+    "next_review_target": "2026-12-15 (Q4 2026 Scheduled Release Cycle)",
     "advisories_accepted": [
       "GHSA-p293-qw3h-jr36",
       "GHSA-2xp9-vwfh-vxw4",
@@ -48,7 +50,7 @@
       "exposure": "Runtime / Windows-only host exposure",
       "justification": "Sentinel is deployed strictly on Linux Docker containers (Ubuntu/Alpine). No Windows host execution in production.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "next",
@@ -59,7 +61,7 @@
       "exposure": "Runtime / Next Image Optimization",
       "justification": "Image optimization endpoint is not exposed to public inputs; no AVIF image rendering used in Sentinel UI.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "next",
@@ -70,7 +72,7 @@
       "exposure": "Runtime / next/og ImageResponse",
       "justification": "Sentinel does not use open graph generation (next/og is neither imported nor routed).",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "next",
@@ -81,7 +83,7 @@
       "exposure": "Runtime / App Router with Turbopack",
       "justification": "Turbopack is disabled in production build; standalone FastAPI backend enforces all authorization boundaries.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "next",
@@ -92,7 +94,7 @@
       "exposure": "Runtime / Server Actions",
       "justification": "Sentinel UI does not expose Next Server Actions. All operations use client-side fetchWithAuth.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "next",
@@ -103,7 +105,7 @@
       "exposure": "Runtime / Server Actions SSRF",
       "justification": "Server actions are not enabled or used in Sentinel frontend architecture.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "next",
@@ -114,7 +116,7 @@
       "exposure": "Runtime / Rewrites destination",
       "justification": "No dynamic external rewrite rules are configured in next.config.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "next",
@@ -125,7 +127,7 @@
       "exposure": "Runtime / Image Optimization SSRF",
       "justification": "No external image domains configured; Image optimization API unused.",
       "remediation_plan": "Scheduled upgrade to Next.js 16.4.x.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "sharp",
@@ -136,7 +138,7 @@
       "exposure": "Transitive / Image processing",
       "justification": "Transitive dependency of Next image processing; not invoked directly.",
       "remediation_plan": "Resolved when upgrading Next.js.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "sharp",
@@ -147,7 +149,7 @@
       "exposure": "Transitive / Image processing",
       "justification": "Transitive dependency of Next image processing; not invoked directly.",
       "remediation_plan": "Resolved when upgrading Next.js.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "sharp",
@@ -158,7 +160,7 @@
       "exposure": "Transitive / Image processing",
       "justification": "Transitive dependency of Next image processing; not invoked directly.",
       "remediation_plan": "Resolved when upgrading Next.js.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "postcss",
@@ -169,7 +171,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Used only during local/CI CSS build step. No untrusted CSS or source maps processed at runtime.",
       "remediation_plan": "Update @tailwindcss/postcss and postcss in next package bump.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "postcss",
@@ -180,7 +182,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Used only during build-time CSS compilation; no runtime service exposure.",
       "remediation_plan": "Update @tailwindcss/postcss and postcss in next package bump.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "brace-expansion",
@@ -191,7 +193,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; never bundled or shipped into client runtime.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "brace-expansion",
@@ -202,7 +204,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; never bundled into production client.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "brace-expansion",
@@ -213,7 +215,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; never bundled into production client.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "brace-expansion",
@@ -224,7 +226,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; dev-only execution.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "brace-expansion",
@@ -235,7 +237,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of ESLint CLI; dev-only execution.",
       "remediation_plan": "Update eslint devDependencies.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "braces",
@@ -246,7 +248,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Development file pattern matcher for Vitest / Tailwind build toolchain.",
       "remediation_plan": "Keep monitored; update when toolchain upstream updates.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "browserslist",
@@ -257,7 +259,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Compile-time query evaluator for CSS autoprefixer. No untrusted input provided.",
       "remediation_plan": "Update browserslist in next cycle.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "browserslist",
@@ -268,7 +270,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Compile-time query evaluator for CSS autoprefixer.",
       "remediation_plan": "Update browserslist in next cycle.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "js-yaml",
@@ -279,7 +281,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "ESLint config parser in dev environment. Never shipped to runtime.",
       "remediation_plan": "Update ESLint toolchain.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "js-yaml",
@@ -290,7 +292,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "ESLint config parser in dev environment. Never shipped to runtime.",
       "remediation_plan": "Update ESLint toolchain.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     },
     {
       "package": "source-map-js",
@@ -301,7 +303,7 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of postcss in build toolchain. Never exposed at runtime.",
       "remediation_plan": "Update postcss in next cycle.",
-      "approved_by": "Vijay Maurya (SBN Platform Owner & Lead Engineer)"
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     }
   ]
 }
