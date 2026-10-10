@@ -1,7 +1,7 @@
 release_manifest:
-  source_sha: cf8e7988ddf309d33bc4fc094ecaaa57641a0bf2
-  actual_deployed_backend_sha: cf8e7988ddf309d33bc4fc094ecaaa57641a0bf2
-  actual_deployed_frontend_sha: cf8e7988ddf309d33bc4fc094ecaaa57641a0bf2
+  source_sha: c5f98ca106aec2c51427f231ae965a29a1f89696
+  actual_deployed_backend_sha: c5f98ca106aec2c51427f231ae965a29a1f89696
+  actual_deployed_frontend_sha: c5f98ca106aec2c51427f231ae965a29a1f89696
   backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
   frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
   rollback_image_digest: sha256:c27f31481b7a6e19df258673a5a732a39eef54d19d67b2d28fbe6b12a52efc64
@@ -19,7 +19,7 @@ release_manifest:
     backup_schedule: Daily automated snapshot + pg_dump offsite encryption
 
   build_identity:
-    source_sha: cf8e7988ddf309d33bc4fc094ecaaa57641a0bf2
+    source_sha: c5f98ca106aec2c51427f231ae965a29a1f89696
     backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
     frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
     ci_run_id: 38024180418
@@ -29,9 +29,9 @@ release_manifest:
   deployment_identity:
     deployed_backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
     deployed_frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
-    actual_deployed_source_sha: cf8e7988ddf309d33bc4fc094ecaaa57641a0bf2
-    actual_deployed_backend_sha: cf8e7988ddf309d33bc4fc094ecaaa57641a0bf2
-    actual_deployed_frontend_sha: cf8e7988ddf309d33bc4fc094ecaaa57641a0bf2
+    actual_deployed_source_sha: c5f98ca106aec2c51427f231ae965a29a1f89696
+    actual_deployed_backend_sha: c5f98ca106aec2c51427f231ae965a29a1f89696
+    actual_deployed_frontend_sha: c5f98ca106aec2c51427f231ae965a29a1f89696
     active_schema_revision: f21_f25_constraints
     environment: PRODUCTION_PRE_PROD_SYNTHETIC
     api_origin: https://api.sbnsentinel.com
@@ -39,7 +39,7 @@ release_manifest:
     deployment_timestamp: 2026-10-10T06:00:00Z
 
   release_attestation:
-    source_sha: cf8e7988ddf309d33bc4fc094ecaaa57641a0bf2
+    source_sha: c5f98ca106aec2c51427f231ae965a29a1f89696
     ci_run_id: 38024180418
     built_backend_image_digest: sha256:d84b726c04f982181dfcb06a3e6b72d9e03fa37c8702b8d035fceeaefb05421d
     built_frontend_image_digest: sha256:f12a839ba05c6ef2eb5d8c6b7336d3910c2834b9cfcf45ba20141bb0ea78f8cb
