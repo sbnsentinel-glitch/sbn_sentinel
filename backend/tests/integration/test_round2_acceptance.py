@@ -651,8 +651,6 @@ def test_at34_release_manifest_verification():
         manifest = yaml.safe_load(f)["release_manifest"]
 
     # 1. Build Identity Verification
-    expected_sha = os.environ.get("GITHUB_SHA")
-    
     assert len(manifest["source_sha"]) == 40
     assert re.match(r"^[0-9a-f]{40}$", manifest["source_sha"])
 
