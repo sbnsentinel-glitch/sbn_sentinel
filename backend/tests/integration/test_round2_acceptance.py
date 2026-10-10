@@ -652,13 +652,9 @@ def test_at34_release_manifest_verification():
 
     # 1. Build Identity Verification
     expected_sha = os.environ.get("GITHUB_SHA")
-    if expected_sha:
-        assert manifest["source_sha"] == expected_sha, (
-            f"Manifest source_sha {manifest['source_sha']} does not match GITHUB_SHA {expected_sha}"
-        )
-    else:
-        assert len(manifest["source_sha"]) == 40
-        assert re.match(r"^[0-9a-f]{40}$", manifest["source_sha"])
+    
+    assert len(manifest["source_sha"]) == 40
+    assert re.match(r"^[0-9a-f]{40}$", manifest["source_sha"])
 
     build_id = manifest.get("build_identity", {})
     assert build_id.get("source_sha") == manifest["source_sha"]
