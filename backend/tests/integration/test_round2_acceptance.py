@@ -650,20 +650,29 @@ def test_at34_release_manifest_verification():
     with open(manifest_path, "r") as f:
         manifest = yaml.safe_load(f)["release_manifest"]
 
-    # 1. Build Identity Verification
+    # Verified release baseline pairing:
+    # Must match the verified green release SHA and SES-011 CI run ID.
+    verified_release_sha = "ea75ef3b958ac91847c77259d43d9a2318301387"
+    verified_ci_run_id = 38062069162
+
+    # 1. Build Identity Verification (against actual verified CI/release baseline)
     assert len(manifest["source_sha"]) == 40
     assert re.match(r"^[0-9a-f]{40}$", manifest["source_sha"])
+    assert manifest["source_sha"] == verified_release_sha
 
     build_id = manifest.get("build_identity", {})
-    assert build_id.get("source_sha") == manifest["source_sha"]
-    assert build_id.get("ci_run_id") is not None
+    assert build_id.get("source_sha") == verified_release_sha
+    assert build_id.get("ci_run_id") == verified_ci_run_id
+    assert str(verified_ci_run_id) in build_id.get("ci_run_url", "")
     assert build_id.get("alembic_revision") == "f21_f25_constraints"
 
     # 2. Deployment Identity Verification (real deployment evidence, not synthetic rewrite)
     dep_id = manifest.get("deployment_identity", {})
-    assert manifest["actual_deployed_backend_sha"] == manifest["source_sha"]
-    assert manifest["actual_deployed_frontend_sha"] == manifest["source_sha"]
-    assert dep_id.get("actual_deployed_source_sha") == manifest["source_sha"]
+    assert manifest["actual_deployed_backend_sha"] == verified_release_sha
+    assert manifest["actual_deployed_frontend_sha"] == verified_release_sha
+    assert dep_id.get("actual_deployed_source_sha") == verified_release_sha
+    assert dep_id.get("actual_deployed_backend_sha") == verified_release_sha
+    assert dep_id.get("actual_deployed_frontend_sha") == verified_release_sha
     assert dep_id.get("active_schema_revision") == "f21_f25_constraints"
     assert dep_id.get("environment") in ["PRODUCTION_PRE_PROD_SYNTHETIC", "PRODUCTION"]
     assert dep_id.get("api_origin") == "https://api.sbnsentinel.com"
@@ -678,8 +687,8 @@ def test_at34_release_manifest_verification():
 
     # 3. Release Attestation Verification
     attestation = manifest.get("release_attestation", {})
-    assert attestation.get("source_sha") == manifest["source_sha"]
-    assert attestation.get("ci_run_id") == build_id.get("ci_run_id")
+    assert attestation.get("source_sha") == verified_release_sha
+    assert attestation.get("ci_run_id") == verified_ci_run_id
     assert attestation.get("schema_revision") == "f21_f25_constraints"
 
     # 4. Operational Evidence Records

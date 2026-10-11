@@ -4,6 +4,7 @@
   "updated_at": "2026-10-09T00:00:00Z",
   "formal_governance_approval": {
     "governance_reference": "SBN-SEC-GOV-2026-F33",
+    "governance_record_document": "DEPENDENCY_APPROVAL_RECORD.md",
     "organization": "SBN Healthcare Solution LLC / SBN Sentinel",
     "accountable_approver": "Vijay Maurya",
     "actual_sbn_role": "Platform Owner & Lead Security Officer",
