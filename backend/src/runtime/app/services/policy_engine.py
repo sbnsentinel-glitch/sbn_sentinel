@@ -82,6 +82,11 @@ class PolicyEngine(BaseService):
                 return True, f"PASS: {policy.policy_id}"
 
             def eval_pol_003_v1(ctx, ep, et):
+                # CP-14: Restricted to Practice Fusion sources in production
+                # Check source in ctx or evidence_package
+                source = ctx.get("source") or (ep.get("source") if isinstance(ep, dict) else None)
+                if source and source not in ("Practice Fusion", "EHR", "PRACTICE_FUSION", "System"):
+                    return False, f"BLOCKED: Source '{source}' is not authorized by POL-003."
                 return True, f"PASS: {policy.policy_id}"
 
             self._handlers[("POL-001", "V1")] = eval_pol_001_v1
@@ -126,6 +131,13 @@ class PolicyEngine(BaseService):
         from datetime import datetime
         now = datetime.utcnow()
         applicable_policies = self.registry.get_applicable_policies(eval_time=now)
+
+        # CP-02: Check sufficiency status from ContextValidator
+        sufficiency_status = decision_context.get("sufficiency_status")
+        is_eligible = decision_context.get("is_decision_eligible", True)
+        if sufficiency_status in ("INSUFFICIENT", "PENDING_EVIDENCE") or is_eligible is False:
+            failed.append("GOV-SUFFICIENCY-GATE")
+            notes.append(f"BLOCKED: Decision context is not eligible for recommendations (status={sufficiency_status}).")
 
         for policy in applicable_policies:
             evaluated.append(f"{policy.policy_id} / {policy.version}")

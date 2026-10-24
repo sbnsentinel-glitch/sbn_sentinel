@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "sentinel_db"
     OPENAI_API_KEY: str = ""
-    LEARNING_ENGINE_ENABLED: bool = True
+    # CP-27: Deterministic V1 boundary - learning engine is disabled by default
+    LEARNING_ENGINE_ENABLED: bool = False
 
     # Twilio
     TWILIO_ACCOUNT_SID: str = ""
@@ -56,6 +57,8 @@ class Settings(BaseSettings):
     @model_validator(mode='after')
     def validate_sesr012_config(self) -> 'Settings':
         if self.ENVIRONMENT == "PRODUCTION":
+            if self.LEARNING_ENGINE_ENABLED:
+                raise ValueError("CP-27 Violation: LEARNING_ENGINE_ENABLED cannot be enabled in PRODUCTION V1")
             if self.SYNTHETIC_TEST_ENABLED:
                 raise ValueError(
                     "SESR-012 CDI-006 Violation: SYNTHETIC_TEST_ENABLED must be disabled in PRODUCTION")

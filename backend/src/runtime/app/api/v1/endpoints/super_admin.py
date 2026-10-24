@@ -14,8 +14,10 @@ router = APIRouter()
 
 def require_super_admin(email: str, db: Session):
     """Simple super admin check - in production use JWT middleware."""
-    user = db.query(User).filter(User.email == email, User.role ==
-                                 UserRole.SYSTEM_ADMINISTRATOR.value).first()
+    user = db.query(User).filter(
+        User.email == email,
+        User.role == UserRole.SYSTEM_ADMINISTRATOR.value
+    ).first()
     if not user:
         raise HTTPException(status_code=403, detail="Super admin access required.")
     return user
@@ -34,8 +36,10 @@ def get_platform_stats(db: Session = Depends(get_db)):
     total_doctors = len([u for u in all_users if u.role in (
         UserRole.PHYSICIAN.value, UserRole.CLINIC_MANAGER.value, UserRole.SYSTEM_ADMINISTRATOR.value)])
     total_patients = len(all_encounters)
-    active_users = len([u for u in all_users if u.is_active and u.role !=
-                       UserRole.SYSTEM_ADMINISTRATOR.value])
+    active_users = len([
+        u for u in all_users
+        if u.is_active and u.role != UserRole.SYSTEM_ADMINISTRATOR.value
+    ])
 
     paid_count = len([e for e in all_encounters if e.billing_status == "Paid"])
     pending_count = len([e for e in all_encounters if e.billing_status == "Pending"])

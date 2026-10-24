@@ -40,6 +40,9 @@ class RecommendationModel(Base):
     generated_at = Column(String)
     intended_target_reference = Column(String, nullable=True)
     authority_requirement = Column(String, nullable=True)
+    problem = Column(Text, nullable=True)
+    business_impact = Column(Text, nullable=True)
+    expected_outcome = Column(Text, nullable=True)
 
 
 class HumanDecisionModel(Base):

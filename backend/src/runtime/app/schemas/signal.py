@@ -25,3 +25,5 @@ class SignalEvent(BaseModel):
     estimated_financial_exposure: Optional[str] = None
     revenue_confidence: Optional[str] = None
     operational_dependency: Optional[str] = None
+    org_id: Optional[str] = None
+    clinic_id: Optional[str] = None

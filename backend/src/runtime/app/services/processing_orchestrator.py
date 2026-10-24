@@ -664,7 +664,8 @@ class ProcessingOrchestrator:
             class PersistenceError(Exception):
                 pass
 
-            success = data_audit_engine.save_intelligence_record(signal_event)
+            # CP-19: Save Signal record inside the caller's db transaction
+            success = data_audit_engine.save_intelligence_record(signal_event, db_session=db)
             if not success:
                 raise PersistenceError("Mandatory intelligence persistence failed")
             event.layer7_storage_ref = event.id
@@ -930,11 +931,22 @@ class ProcessingOrchestrator:
                     ingestion_timestamp=datetime.utcnow()
                 ))
 
+                actual_age = None
+                if isinstance(ev, dict):
+                    actual_age = ev.get("age_seconds")
+                else:
+                    actual_age = getattr(ev, "age_seconds", None)
+
+                if actual_age is None:
+                    # Check freshness block
+                    freshness_meta = evidence_data.get("freshness", {}) if isinstance(evidence_data, dict) else {}
+                    actual_age = freshness_meta.get("age_seconds")
+
                 db.add(ContextFreshnessModel(
                     id=str(uuid.uuid4()),
                     context_id=context_id,
                     evidence_id=ev_id,
-                    age_seconds="0",
+                    age_seconds=str(actual_age) if actual_age is not None else "UNAVAILABLE",
                     is_stale=bool(evidence_data.get("freshness", {}).get("is_stale", False)) if isinstance(evidence_data, dict) else False
                 ))
 
@@ -986,7 +998,8 @@ class ProcessingOrchestrator:
                 db.rollback()
             except Exception:
                 pass
-            self.logger.warning(f"Could not persist D4 context evidence records: {e}")
+            self.logger.error(f"Could not persist D4 context evidence records: {e}")
+            raise RuntimeError(f"Mandatory D4 context evidence persistence failed: {e}") from e
 
 
 # Singleton instance

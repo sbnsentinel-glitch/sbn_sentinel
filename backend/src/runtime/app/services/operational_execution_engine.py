@@ -277,7 +277,9 @@ class OperationalExecutionEngine(BaseService):
             return {"status": "REJECTED", "current_status": new_status.value, "message": f"Execution rejected: {eligibility['reason']}"}
 
         # Atomic claim
-        if not governance_registry.claim_operational_action(action_id):
+        # CP-22: pass is_retry flag if attempts exist
+        is_retry = (len(attempts) > 0)
+        if not governance_registry.claim_operational_action(action_id, is_retry=is_retry):
             return {"status": "ERROR", "message": "Execution claiming failed. Action may already be executing."}
 
         # Reload action after claim

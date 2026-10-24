@@ -39,14 +39,15 @@ class IntelligenceEngine(BaseService):
 
         if not finding:
             # F-11: no active findings means NO_RECOMMENDATION
+            # CP-24: Use semantic state 'NOT_ESTABLISHED' instead of human-readable 'None'
             return {
                 "risk_level": "Information",
                 "priority": "Information",
-                "priority_score": 0,
+                "priority_score": None,
                 "problem": "No operational condition met",
                 "reason": "Event triggered evaluation but no rules matched.",
-                "operational_impact": "None",
-                "business_impact": "None",
+                "operational_impact": "NOT_ESTABLISHED",
+                "business_impact": "NOT_ESTABLISHED",
                 "action": "NO_RECOMMENDATION",
                 "recommendation": "NO_RECOMMENDATION",
                 "expected_outcome": "No operational action recommended.",
@@ -71,11 +72,11 @@ class IntelligenceEngine(BaseService):
             return {
                 "risk_level": "Information",
                 "priority": "Information",
-                "priority_score": 0,
+                "priority_score": None,
                 "problem": "Unmapped Event",
                 "reason": f"Event triggered rule {rule_id} but no governed recommendation mapping exists.",
-                "operational_impact": "None",
-                "business_impact": "None",
+                "operational_impact": "NOT_ESTABLISHED",
+                "business_impact": "NOT_ESTABLISHED",
                 "action": "NO_RECOMMENDATION",
                 "recommendation": "NO_RECOMMENDATION",
                 "expected_outcome": "No operational action recommended.",
@@ -146,11 +147,15 @@ class IntelligenceEngine(BaseService):
             "recommendation_id": rec_id
         }
 
+        # CP-25: Governed priority score derivation
+        priority_map = {"Critical": 90, "High": 75, "Moderate": 50, "Low": 25, "Information": 10}
+        score = priority_map.get(mapping.priority, None)
+
         # Keep legacy dict shape for UI compatibility
         result_payload = {
             "risk_level": mapping.priority,
             "priority": mapping.priority,
-            "priority_score": 50,  # Optional: calculate based on priority
+            "priority_score": score,
             "problem": formatted_problem,
             "reason": f"Governed Mapping {mapping.mapping_id}",
             "operational_impact": formatted_impact,

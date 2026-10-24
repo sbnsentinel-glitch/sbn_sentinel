@@ -1,5 +1,8 @@
+import logging
 from typing import Dict, Any
 from app.services.base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class DecisionContextEngine(BaseService):
@@ -37,22 +40,33 @@ class DecisionContextEngine(BaseService):
         event_type = payload.get("event_type", "Unknown")
 
         # Resolve evidence objects from the repository using EOS-003 references
+        # CP-04: Track requested_refs, resolved_refs, and unresolved_refs as first-class fields
         evidence_items = []
-        refs = eos_003.get(
+        requested_refs = list(eos_003.get(
             "evidence_references",
             []) if isinstance(
             eos_003,
             dict) else getattr(
             eos_003,
             "evidence_references",
-            [])
+            []))
 
-        for ref_id in refs:
+        resolved_refs = []
+        unresolved_refs = []
+
+        for ref_id in requested_refs:
             ev = evidence_repository.retrieve(ref_id)
             if ev:
                 evidence_items.append(ev)
+                resolved_refs.append(ref_id)
+            else:
+                unresolved_refs.append(ref_id)
 
         evidence_package = eos_003  # Pass EOS-003 as the package payload
+        if isinstance(evidence_package, dict):
+            evidence_package["requested_refs"] = requested_refs
+            evidence_package["resolved_refs"] = resolved_refs
+            evidence_package["unresolved_refs"] = unresolved_refs
 
         def get_fact_value(e):
             return getattr(
@@ -120,36 +134,36 @@ class DecisionContextEngine(BaseService):
             context = {
                 "primary_context": "Operational",
                 "secondary_context": "Provider Schedule Gap",
-                "reason": "Appointment marked as No-Show creates immediate unused capacity in provider schedule.",
+                "reason": "Appointment marked as No-Show observed; capacity status recorded.",
                 "evidence_package": evidence_package,
                 "event_type": event_type}
         elif has_wait_time:
             context = {
                 "primary_context": "Operational",
                 "secondary_context": "Queue Congestion",
-                "reason": "Patient waiting >45 minutes indicates provider bottleneck or capacity surge.",
+                "reason": "Patient waiting >45 minutes observed; cause not established without direct staffing evidence.",
                 "evidence_package": evidence_package,
                 "event_type": event_type}
         elif has_booked:
             context = {
                 "primary_context": "Administrative",
                 "secondary_context": "Routine Booking",
-                "reason": "Standard forward-looking schedule addition.",
+                "reason": "Standard forward-looking schedule addition observed.",
                 "evidence_package": evidence_package,
                 "event_type": event_type
             }
         elif has_missed_call:
             context = {
                 "primary_context": "Operational",
-                "secondary_context": "Staff Overload",
-                "reason": "Inbound communication failure indicates front-desk saturation or understaffing.",
+                "secondary_context": "Missed Call Observation",
+                "reason": "Inbound communication failure observed; front-desk staffing cause not established.",
                 "evidence_package": evidence_package,
                 "event_type": event_type}
         elif has_pending_review:
             context = {
                 "primary_context": "Clinical Workflow",
                 "secondary_context": "Documentation Dependency",
-                "reason": "Lab report delivered but lacks provider signature for closure.",
+                "reason": "Lab report delivered; pending provider review observed.",
                 "evidence_package": evidence_package,
                 "event_type": event_type
             }
@@ -171,9 +185,13 @@ class DecisionContextEngine(BaseService):
         new_package = builder.build(event_type, evidence_items)
         validated = validator.validate(new_package)
 
-        # F-12: Hard gate
-        if hasattr(validated, "is_valid") and not validated.is_valid:
-            raise DecisionContextInvalid(getattr(validated, "errors", "Validation failed"))
+        # CP-02: Hard gate - Enforce sufficiency_status
+        sufficiency_status = validated.get("governance", {}).get("sufficiency_status", "SUFFICIENT")
+        context["sufficiency_status"] = sufficiency_status
+        context["is_decision_eligible"] = (sufficiency_status == "SUFFICIENT")
+
+        if sufficiency_status in ("INSUFFICIENT", "PENDING_EVIDENCE"):
+            logger.info(f"[DecisionContextEngine] Context marked decision-ineligible due to status: {sufficiency_status}")
 
         serialized_package = serializer.serialize(validated)
 

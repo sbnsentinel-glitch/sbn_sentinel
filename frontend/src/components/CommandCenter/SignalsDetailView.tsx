@@ -399,7 +399,11 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
                 </div>
                 <div>
                   <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold">Financial Exposure</p>
-                  <p className="text-sm font-black text-amber-400">{selectedSignal.estimated_financial_exposure || '$0.00'}</p>
+                  <p className="text-sm font-black text-amber-400">
+                    {selectedSignal.estimated_financial_exposure !== null && selectedSignal.estimated_financial_exposure !== undefined
+                      ? selectedSignal.estimated_financial_exposure
+                      : 'Unavailable'}
+                  </p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold">Operational Dependency</p>
@@ -414,7 +418,7 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
             >
               <div className="bg-black/50 rounded-[12px] p-4 text-[10px] font-mono text-amber-400 overflow-x-auto max-h-48 custom-scrollbar border border-white/10">
                 <pre>{JSON.stringify({
-                  decision_context_id: `ctx-${selectedSignal.id}`,
+                  decision_context_id: basisData?.decision_context?.context_id || selectedSignal.metadata?.decision_context_id || 'UNAVAILABLE',
                   evidence_snapshot: getSimulatedRawPayload(selectedSignal)
                 }, null, 2)}</pre>
               </div>

@@ -25,6 +25,11 @@ class HistoricalBindingUnavailable(Exception):
     pass
 
 
+class DecisionConflict(Exception):
+    """Raised when a concurrent conflicting human decision already exists."""
+    pass
+
+
 # ======================================================
 # SESR-003: Core Governance Objects
 # ======================================================
@@ -573,6 +578,9 @@ class GovernanceRegistry:
                 content=record.recommendation_content,
                 status=record.status.value,
                 priority=record.priority,
+                business_impact=record.business_impact,
+                expected_outcome=record.expected_outcome,
+                problem=record.problem,
                 generated_at=record.generated_at.isoformat(),
                 intended_target_reference=record.intended_target_reference,
                 authority_requirement=record.authority_requirement.value
@@ -597,7 +605,8 @@ class GovernanceRegistry:
             db_record = db.query(RecommendationModel).filter(RecommendationModel.recommendation_id == recommendation_id).first()
             if db_record:
                 raw_auth = getattr(db_record, "authority_requirement", None)
-                if not raw_auth or raw_auth == "INFORMATIONAL":
+                # CP-09: INFORMATIONAL is a valid AuthorityRequirement, only empty/None or invalid is unavailable
+                if not raw_auth:
                     raise HistoricalBindingUnavailable("Missing recommendation authority")
 
                 return RecommendationRecord(
@@ -610,6 +619,9 @@ class GovernanceRegistry:
                     status=RecommendationStatus(db_record.status),
                     authority_requirement=AuthorityRequirement(raw_auth),
                     priority=db_record.priority,
+                    business_impact=getattr(db_record, "business_impact", "") or "",
+                    expected_outcome=getattr(db_record, "expected_outcome", "") or "",
+                    problem=getattr(db_record, "problem", "") or "",
                     generated_at=parse(db_record.generated_at),
                     journey_id=db_record.journey_id,
                     intended_target_reference=db_record.intended_target_reference
@@ -628,7 +640,7 @@ class GovernanceRegistry:
     def get_authority_config(self, role: str) -> Optional[AuthorityConfiguration]:
         return self._authority_configs.get(role)
 
-    def record_human_decision(self, decision: HumanDecisionRecord):
+    def record_human_decision(self, decision: HumanDecisionRecord) -> HumanDecisionRecord:
         db = SessionLocal()
         try:
             existing = db.query(HumanDecisionModel).filter(
@@ -638,8 +650,20 @@ class GovernanceRegistry:
 
             if existing:
                 if existing.actor_id != decision.actor_id or existing.decision_type != decision.decision_type.value:
-                    raise Exception("A current decision already exists for this recommendation.")
-                # Idempotent - do nothing
+                    raise DecisionConflict("A current decision already exists for this recommendation.")
+                # Idempotent - return existing
+                return HumanDecisionRecord(
+                    decision_id=existing.decision_id,
+                    recommendation_id=existing.recommendation_id,
+                    journey_id=existing.journey_id,
+                    actor_id=existing.actor_id,
+                    decision_type=DecisionType(existing.decision_type),
+                    status=DecisionStatus(existing.status),
+                    decision_timestamp=dateutil_parse(existing.decision_timestamp) if existing.decision_timestamp else None,
+                    authority_basis=existing.authority_basis,
+                    reason=existing.reason,
+                    override_indicator=existing.override_indicator
+                )
             else:
                 db.add(HumanDecisionModel(
                     decision_id=decision.decision_id,
@@ -648,21 +672,41 @@ class GovernanceRegistry:
                     actor_id=decision.actor_id,
                     decision_type=decision.decision_type.value,
                     status=decision.status.value,
-                    decision_timestamp=decision.decision_timestamp.isoformat(),
+                    decision_timestamp=decision.decision_timestamp.isoformat() if decision.decision_timestamp else None,
                     authority_basis=decision.authority_basis,
                     reason=decision.reason,
                     override_indicator=decision.override_indicator
                 ))
                 db.commit()
-            self._human_decisions.append(decision)
+                self._human_decisions.append(decision)
+                return decision
         except sqlalchemy.exc.IntegrityError:
             db.rollback()
-            # Idempotent - do nothing
-            pass
+            # CP-10: On uniqueness conflict, reload the existing current decision
+            existing = db.query(HumanDecisionModel).filter(
+                HumanDecisionModel.recommendation_id == decision.recommendation_id,
+                HumanDecisionModel.status == "RECORDED"
+            ).first()
+            if existing:
+                if existing.actor_id == decision.actor_id and existing.decision_type == decision.decision_type.value:
+                    return HumanDecisionRecord(
+                        decision_id=existing.decision_id,
+                        recommendation_id=existing.recommendation_id,
+                        journey_id=existing.journey_id,
+                        actor_id=existing.actor_id,
+                        decision_type=DecisionType(existing.decision_type),
+                        status=DecisionStatus(existing.status),
+                        decision_timestamp=dateutil_parse(existing.decision_timestamp) if existing.decision_timestamp else None,
+                        authority_basis=existing.authority_basis,
+                        reason=existing.reason,
+                        override_indicator=existing.override_indicator
+                    )
+                raise DecisionConflict("A conflicting current decision was concurrently persisted.")
+            raise
         except Exception as e:
             db.rollback()
             logger.error(f"DB Error saving decision: {e}")
-            raise  # Issue #3: Abort
+            raise
         finally:
             db.close()
 
@@ -686,7 +730,7 @@ class GovernanceRegistry:
                     override_indicator=db_record.override_indicator,
                     status=DecisionStatus(db_record.status),
                     journey_id=db_record.journey_id,
-                    decision_timestamp=datetime.fromisoformat(db_record.decision_timestamp.replace('Z', '+00:00')) if db_record.decision_timestamp else datetime.utcnow()
+                    decision_timestamp=datetime.fromisoformat(db_record.decision_timestamp.replace('Z', '+00:00')) if db_record.decision_timestamp else None
                 )
             # Fallback to in-memory for testing if needed
             for d in self._human_decisions:
@@ -793,13 +837,19 @@ class GovernanceRegistry:
         finally:
             db.close()
 
-    def claim_operational_action(self, action_id: str) -> bool:
+    def claim_operational_action(self, action_id: str, is_retry: bool = False) -> bool:
         from app.db.database import SessionLocal
         from app.models.governance_storage import OperationalActionModel
         db = SessionLocal()
         try:
             db_record = db.query(OperationalActionModel).filter(OperationalActionModel.action_id == action_id).with_for_update().first()
-            if db_record and db_record.status in ("CREATED", "READY"):
+            # CP-22: Allow claim if state is CREATED/READY or if retry-eligible
+            can_claim = (db_record.status in ("CREATED", "READY")) if db_record else False
+            if db_record and not can_claim and is_retry:
+                # Retry claim for non-terminal failed/partial action
+                can_claim = db_record.status not in ("COMPLETED", "CANCELLED", "EXPIRED", "BLOCKED", "EXECUTING") and db_record.current_result in ("FAILED", "PARTIAL")
+
+            if db_record and can_claim:
                 db_record.status = "EXECUTING"
                 db.commit()
                 # Update memory
@@ -1165,8 +1215,10 @@ class GovernanceRegistry:
         applicable = []
         # Find latest active policy per policy_id that is effective
         for p_id in set(p.policy_id for p in self._policies):
-            versions = [p for p in self._policies if p.policy_id ==
-                        p_id and p.is_applicable(eval_time)]
+            versions = [
+                p for p in self._policies
+                if p.policy_id == p_id and p.is_applicable(eval_time)
+            ]
             if len(versions) > 1:
                 raise ValueError(f"GOVERNANCE_AMBIGUITY: Multiple active policies found for {p_id}")
             if versions:
@@ -1181,8 +1233,10 @@ class GovernanceRegistry:
         """PRR-004: Resolve Applicable Rule Version"""
         self._ensure_rules_loaded()
         applicable = []
-        mapped_rules = [r for r in self._rules if r.governing_policy_id ==
-                        policy_id and r.governing_policy_version == policy_version]
+        mapped_rules = [
+            r for r in self._rules
+            if r.governing_policy_id == policy_id and r.governing_policy_version == policy_version
+        ]
         for r_id in set(r.rule_id for r in mapped_rules):
             versions = [r for r in mapped_rules if r.rule_id == r_id and r.is_applicable(eval_time)]
             if len(versions) > 1:
@@ -1428,16 +1482,14 @@ def initialize_registry_seeds():
                 version="V1",
                 applicable_rule_id="RULE-SCH-001",
                 eligible_result="CONDITION_MET",
-                recommendation_template="Consider sending an SMS reschedule link and dispatching a $25 fee claim.",
+                recommendation_template="Review no-show follow-up according to clinic policy and evaluate reschedule options.",
                 authority_requirement=AuthorityRequirement.APPROVAL_REQUIRED,
                 priority="Moderate",
-                business_impact_template="-$150.00 estimated revenue loss.",
-                expected_outcome_template="Recovery of $25 fee and rescheduled visit.",
+                business_impact_template="Unfilled appointment slot in provider schedule.",
+                expected_outcome_template="Patient contacted for reschedule and schedule slot reclaimed.",
                 problem_template="Patient No-Show",
                 lifecycle_state=LifecycleState.ACTIVE,
-                effective_from=datetime.utcnow() -
-                timedelta(
-                    days=30),
+                effective_from=(datetime.utcnow() - timedelta(days=30)),
                 allowed_action_types=["RESCHEDULE_APPOINTMENT", "SEND_NOTIFICATION"]
             ))
 
@@ -1455,9 +1507,7 @@ def initialize_registry_seeds():
                 expected_outcome_template="Wait time mitigated, patient informed.",
                 problem_template="Extended Patient Wait Time",
                 lifecycle_state=LifecycleState.ACTIVE,
-                effective_from=datetime.utcnow() -
-                timedelta(
-                    days=30),
+                effective_from=(datetime.utcnow() - timedelta(days=30)),
                 allowed_action_types=["UPDATE_OPERATIONAL_STATUS", "SEND_NOTIFICATION"]
             ))
 

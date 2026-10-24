@@ -159,6 +159,10 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
             errors.append("ambiguous_rule_eval")
         elif len(rule_eval_rows) == 1:
             rule_eval = rule_eval_rows[0]
+            # CP-21: Continuity verification
+            if rule_eval.journey_id and rec.journey_id and rule_eval.journey_id != rec.journey_id:
+                errors.append("cross_journey_rule_eval")
+
             evals.append({
                 "evaluation_id": rule_eval.evaluation_id,
                 "rule_id": rule_eval.rule_id,
@@ -187,6 +191,10 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
     decisions_out = []
     decisions = db.query(HumanDecisionModel).filter(HumanDecisionModel.recommendation_id == rec.recommendation_id).all()
     for d in decisions:
+        # CP-21: Validate journey continuity on Decision
+        if d.journey_id and rec.journey_id and d.journey_id != rec.journey_id:
+            errors.append("cross_journey_decision")
+
         decisions_out.append({
             "decision_id": d.decision_id,
             "actor_id": d.actor_id,
@@ -202,6 +210,10 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
     for d in decisions:
         actions = db.query(OperationalActionModel).filter(OperationalActionModel.authorization_reference == d.decision_id).all()
         for a in actions:
+            # CP-21: Validate journey continuity on Action
+            if a.journey_id and rec.journey_id and a.journey_id != rec.journey_id:
+                errors.append("cross_journey_action")
+
             attempts_out = []
             attempts = db.query(ExecutionAttemptModel).filter(ExecutionAttemptModel.action_id == a.action_id).all()
             for att in attempts:
@@ -217,6 +229,8 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
                 errors.append("ambiguous_outcome")
             elif len(outcomes) == 1:
                 outcome = outcomes[0]
+                if outcome.journey_id and rec.journey_id and outcome.journey_id != rec.journey_id:
+                    errors.append("cross_journey_outcome")
                 outcome_out = {
                     "outcome_id": outcome.outcome_id,
                     "confirmation_state": outcome.confirmation_state,

@@ -18,6 +18,40 @@ class RulesEngine(BaseService):
     def __init__(self):
         self.registry = governance_registry
         self._handlers = {}
+        self._init_default_handlers()
+
+    def _init_default_handlers(self):
+        def eval_sch_001_v1(inputs: Dict[str, Any]) -> str:
+            if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Provider Schedule Gap":
+                return "CONDITION_MET"
+            return "CONDITION_NOT_MET"
+
+        def eval_sch_002_v1(inputs: Dict[str, Any]) -> str:
+            if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Queue Congestion":
+                return "CONDITION_MET"
+            return "CONDITION_NOT_MET"
+
+        def eval_sch_003_v1(inputs: Dict[str, Any]) -> str:
+            if inputs.get("primary_context") == "Operational":
+                return "CONDITION_MET"
+            return "CONDITION_NOT_MET"
+
+        self._handlers[("RULE-SCH-001", "V1")] = eval_sch_001_v1
+        self._handlers[("RULE-SCH-002", "V1")] = eval_sch_002_v1
+        self._handlers[("RULE-SCH-003", "V1")] = eval_sch_003_v1
+
+    def validate_governance_readiness(self) -> Dict[str, Any]:
+        """Validates that every ACTIVE + APPROVED executable RuleVersion has exactly one handler."""
+        now = datetime.utcnow()
+        missing = []
+        rules = self.registry.get_applicable_rules(now) if hasattr(self.registry, "get_applicable_rules") else []
+        for r in rules:
+            if (r.rule_id, r.version) not in self._handlers:
+                missing.append(f"{r.rule_id}:{r.version}")
+        return {
+            "status": "READY" if not missing else "NOT_READY",
+            "missing_handlers": missing
+        }
 
     @property
     def service_name(self) -> str:
@@ -86,19 +120,33 @@ class RulesEngine(BaseService):
             for rule in applicable_rules:
                 # 3. PRO-006: Load Defined Rule Inputs & Check
                 input_values = {}
-                missing_inputs = []
+                invalid_input = False
                 for req_input in rule.inputs:
                     val = decision_context.get(req_input.input_name)
-                    if val is None and req_input.required:
-                        missing_inputs.append(req_input.input_name)
+                    if val is None:
+                        if req_input.required:
+                            invalid_input = True
+                            break
                     else:
+                        # CP-06: Type validation
+                        if req_input.input_type == "str" and not isinstance(val, str):
+                            invalid_input = True
+                            break
+                        elif req_input.input_type in ("int", "integer") and not isinstance(val, int):
+                            invalid_input = True
+                            break
                         input_values[req_input.input_name] = val
 
-                if missing_inputs:
+                if invalid_input:
                     result_state = "NOT_EVALUABLE"
                 else:
                     # 4. PGC-015: Deterministic Rule Logic execution
                     result_state = self._execute_rule_logic(rule, input_values)
+
+                # CP-06: Validate handler output against allowed_outputs
+                if rule.allowed_outputs and result_state not in rule.allowed_outputs:
+                    logger.error(f"[RulesEngine] Unsupported handler output '{result_state}' for rule {rule.rule_id} v{rule.version}")
+                    result_state = "NOT_EVALUABLE"
 
                 # PRO-014: Fail closed if context identity is missing (SESR-009)
                 decision_context_id = decision_context.get("id")
@@ -132,27 +180,6 @@ class RulesEngine(BaseService):
 
     def _execute_rule_logic(self, rule: RuleVersion, inputs: Dict[str, Any]) -> str:
         """Deterministically evaluates rule conditions."""
-
-        if not self._handlers:
-            def eval_sch_001_v1(inputs: Dict[str, Any]) -> str:
-                if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Provider Schedule Gap":
-                    return "CONDITION_MET"
-                return "CONDITION_NOT_MET"
-
-            def eval_sch_002_v1(inputs: Dict[str, Any]) -> str:
-                if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Queue Congestion":
-                    return "CONDITION_MET"
-                return "CONDITION_NOT_MET"
-
-            def eval_sch_003_v1(inputs: Dict[str, Any]) -> str:
-                if inputs.get("primary_context") == "Operational":
-                    return "CONDITION_MET"
-                return "CONDITION_NOT_MET"
-
-            self._handlers[("RULE-SCH-001", "1.0")] = eval_sch_001_v1
-            self._handlers[("RULE-SCH-002", "1.0")] = eval_sch_002_v1
-            self._handlers[("RULE-SCH-003", "1.0")] = eval_sch_003_v1
-
         handler = self._handlers.get((rule.rule_id, rule.version))
         if not handler:
             return "NOT_EVALUABLE"

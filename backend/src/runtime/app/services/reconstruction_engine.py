@@ -54,7 +54,11 @@ class ReconstructionEngine:
             original_rec = {
                 "priority": record.priority,
                 "action": record.content,
-                "mapping_version": record.mapping_version
+                "mapping_version": record.mapping_version,
+                "authority": record.authority_requirement,
+                "problem": getattr(record, "problem", None),
+                "business_impact": getattr(record, "business_impact", None),
+                "expected_outcome": getattr(record, "expected_outcome", None)
             }
 
             if not record.mapping_version:
@@ -184,21 +188,31 @@ class ReconstructionEngine:
                     "business_impact": historical_mapping.business_impact_template,
                     "action": historical_mapping.recommendation_template,
                     "expected_outcome": historical_mapping.expected_outcome_template,
-                    "mapping_version": historical_mapping.version
+                    "mapping_version": historical_mapping.version,
+                    "authority": getattr(historical_mapping.authority_requirement, "value", str(historical_mapping.authority_requirement)),
+                    "problem": getattr(historical_mapping, "problem_template", None)
                 }
             elif rule_result == "CONDITION_NOT_MET":
                 reproduced_rec = {
                     "action": "NO_RECOMMENDATION",
                     "priority": "Information",
-                    "mapping_version": None
+                    "mapping_version": None,
+                    "authority": None,
+                    "problem": None,
+                    "business_impact": None,
+                    "expected_outcome": None
                 }
 
             # 4. Compare Outputs
-            # original_rec is already loaded above
-
-            # Simple diff: compare key values
+            # Compare canonical contract fields
             diffs = []
-            for k in ["priority", "action", "mapping_version"]:
+            compare_keys = ["priority", "action", "mapping_version"]
+            # If historical original record had these fields persisted, include them in comparison
+            for optional_k in ["authority", "problem", "business_impact", "expected_outcome"]:
+                if original_rec.get(optional_k) is not None:
+                    compare_keys.append(optional_k)
+
+            for k in compare_keys:
                 orig_val = original_rec.get(k)
                 repr_val = reproduced_rec.get(k)
                 if orig_val != repr_val:

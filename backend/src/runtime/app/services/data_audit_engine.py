@@ -17,12 +17,13 @@ class DataAuditEngine:
     Manages operational data lifecycle, validation, and immutable audit logs.
     """
 
-    def save_intelligence_record(self, event: SignalEvent) -> bool:
+    def save_intelligence_record(self, event: SignalEvent, db_session=None) -> bool:
         """
         Validates and securely stores an operational intelligence record (Signal)
         and generates an automatic system audit log.
         """
-        db = SessionLocal()
+        db = db_session or SessionLocal()
+        should_close = (db_session is None)
         try:
             db_signal = SignalModel(
                 id=event.id,
@@ -50,6 +51,8 @@ class DataAuditEngine:
                 estimated_financial_exposure=event.estimated_financial_exposure,
                 revenue_confidence=event.revenue_confidence,
                 operational_dependency=event.operational_dependency,
+                org_id=getattr(event, 'org_id', None) or (event.metadata.get('org_id') if event.metadata else None),
+                clinic_id=getattr(event, 'clinic_id', None) or (event.metadata.get('clinic_id') if event.metadata else None),
                 explainability_log=getattr(
                     event,
                     'explainability_log',
@@ -59,7 +62,8 @@ class DataAuditEngine:
                     'priority_score',
                     None))
             db.add(db_signal)
-            db.commit()
+            if should_close:
+                db.commit()
 
             # Generate Immutable System Audit Log
             self._log_internal(
@@ -72,10 +76,12 @@ class DataAuditEngine:
             return True
         except Exception as e:
             logger.error(f"[DMAE] Failed to save intelligence record: {e}")
-            db.rollback()
+            if should_close:
+                db.rollback()
             return False
         finally:
-            db.close()
+            if should_close:
+                db.close()
 
     def log_audit_event(self, audit_data: AuditLogCreate) -> bool:
         """

@@ -116,8 +116,10 @@ class HumanDecisionEngine(BaseService):
             }
 
         # Fallback check in-memory if not committed yet
-        existing_decisions = [d for d in governance_registry._human_decisions if d.recommendation_id ==
-                              recommendation_id and d.status == DecisionStatus.RECORDED]
+        existing_decisions = [
+            d for d in governance_registry._human_decisions
+            if d.recommendation_id == recommendation_id and d.status == DecisionStatus.RECORDED
+        ]
         if existing_decisions:
             for d in existing_decisions:
                 if d.actor_id == actor_id and d.decision_type == decision_type:
@@ -158,14 +160,14 @@ class HumanDecisionEngine(BaseService):
         )
 
         try:
-            governance_registry.record_human_decision(decision_record)
+            persisted_record = governance_registry.record_human_decision(decision_record)
         except Exception as e:
             logger.warning(f"[HumanDecisionEngine] Atomic constraint failed: {e}")
             return {"status": "ERROR", "message": str(e)}
 
         return {
             "status": "SUCCESS",
-            "decision_id": decision_id,
+            "decision_id": persisted_record.decision_id if persisted_record else decision_id,
             "message": "Human decision successfully governed and recorded."
         }
 

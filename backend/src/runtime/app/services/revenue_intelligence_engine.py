@@ -42,32 +42,35 @@ class RevenueIntelligenceEngine(BaseService):
             revenue_confidence: Literal["HIGH", "MODERATE", "LOW", "UNAVAILABLE"] = "UNAVAILABLE"
             operational_dependency: str | None = None
 
+        # CP-15: Operational intelligence != billing outcome.
+        # Estimates require customer-specific financial evidence basis.
+        # If no governed financial evidence basis is attached, represent exposure as None + UNAVAILABLE confidence.
         if rule_id == "RULE-SCH-001":  # No-show
             revenue = RevenueResult(
-                revenue_risk_category="Operational Revenue Risk",
-                estimated_financial_exposure="$150.00",
-                revenue_confidence="MODERATE",
+                revenue_risk_category="Operational Capacity Risk",
+                estimated_financial_exposure=None,
+                revenue_confidence="UNAVAILABLE",
                 operational_dependency="Unable to backfill appointment slot in time."
             )
         elif rule_id == "RULE-SCH-002":  # Wait time exceeded
             revenue = RevenueResult(
-                revenue_risk_category="Operational Revenue Risk",
-                estimated_financial_exposure="Variable",
-                revenue_confidence="LOW",
-                operational_dependency="Patient satisfaction drop and potential walk-outs reducing daily visit count."
+                revenue_risk_category="Operational Flow Risk",
+                estimated_financial_exposure=None,
+                revenue_confidence="UNAVAILABLE",
+                operational_dependency="Queue congestion impacting daily clinic schedule."
             )
         elif rule_id == "RULE-OPS-001":  # Missed Call
             revenue = RevenueResult(
                 revenue_risk_category="Registration Risk",
-                estimated_financial_exposure="$125.00 (per lost booking)",
-                revenue_confidence="MODERATE",
+                estimated_financial_exposure=None,
+                revenue_confidence="UNAVAILABLE",
                 operational_dependency="Front-desk availability to return call within 15 minutes."
             )
         elif rule_id == "RULE-CLIN-001":  # Pending Lab Review
             revenue = RevenueResult(
                 revenue_risk_category="Documentation Risk",
-                estimated_financial_exposure="Claim Hold (100% of Encounter)",
-                revenue_confidence="HIGH",
+                estimated_financial_exposure=None,
+                revenue_confidence="UNAVAILABLE",
                 operational_dependency="Provider must sign the pending lab report in EHR."
             )
         else:

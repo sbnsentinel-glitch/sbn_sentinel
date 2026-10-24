@@ -123,9 +123,14 @@ def get_platform_health(current_user: User = Depends(
         RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value]))):
     """
     Returns PASME Platform Health monitoring metrics.
+    CP-30: Keep liveness, readiness and capability separate.
     """
     process = psutil.Process(os.getpid())
     memory_info = process.memory_info()
+
+    from app.services.rules_engine import rules_engine
+    readiness = rules_engine.validate_governance_readiness()
+    rules_engine_status = "online" if readiness.get("status") == "READY" else "degraded"
 
     return {
         "status": "healthy" if not MAINTENANCE_MODE else "maintenance",
@@ -137,7 +142,7 @@ def get_platform_health(current_user: User = Depends(
         },
         "modules": {
             "connector_engine": "online",
-            "rules_engine": "online",
+            "rules_engine": rules_engine_status,
             "context_engine": "online",
             "dmae": "online",
             "siame": "online"
@@ -172,13 +177,21 @@ def toggle_rule(rule_id: str, db: Session = Depends(get_db), current_user: User 
         RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value]))):
     """
     Toggle a rule's active state. Audited by DMAE.
+    CP-23: Synchronize with governed GovernanceRegistry RuleVersion.
     """
     rule = db.query(RuleModel).filter(RuleModel.rule_id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
 
-    previous_state = rule.is_active  # noqa
     rule.is_active = not rule.is_active
+
+    # CP-23: Also update governed rule state in GovernanceRegistry if present
+    from app.services.governance_registry import governance_registry, LifecycleState
+    gov_rule_id = rule_id if rule_id.startswith("RULE-") else f"RULE-{rule_id}"
+    gov_rule = governance_registry.get_rule_by_version(gov_rule_id, "V1")
+    if gov_rule:
+        new_state = LifecycleState.ACTIVE if rule.is_active else LifecycleState.RETIRED
+        object.__setattr__(gov_rule, "lifecycle_state", new_state)
 
     # MS-012/MS-010 Audit Requirement: Administrative actions are permanently traceable
     audit_data = AuditLogCreate(

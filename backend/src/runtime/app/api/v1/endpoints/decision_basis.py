@@ -256,9 +256,9 @@ def get_decision_basis(
         evals_to_show = [
             r for r in evals
             if r.evaluation_id == rule_evaluation_id or (
-                r.decision_context_id == context_id and
-                r.policy_id == policy_id and
-                r.policy_version == policy_version
+                r.decision_context_id == context_id
+                and r.policy_id == policy_id
+                and r.policy_version == policy_version
             )
         ]
     else:
