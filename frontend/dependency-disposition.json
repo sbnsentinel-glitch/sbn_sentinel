@@ -38,7 +38,13 @@
       "GHSA-73wf-gq98-2v4g",
       "GHSA-5p4m-2wfm-xmqj",
       "GHSA-2883-xcg3-v3hh",
-      "GHSA-68fv-2mgg-jv7q"
+      "GHSA-68fv-2mgg-jv7q",
+      "GHSA-2464-fhr4-w9xw",
+      "GHSA-p3m5-59mp-jv5r",
+      "GHSA-673q-mjm6-r5xr",
+      "GHSA-xjj6-f33q-929c",
+      "GHSA-587h-7wmj-h5pm",
+      "GHSA-mrhx-c7xc-m3w5"
     ]
   },
   "dispositions": [
@@ -304,6 +310,72 @@
       "exposure": "Dev / Build-time only",
       "justification": "Sub-dependency of postcss in build toolchain. Never exposed at runtime.",
       "remediation_plan": "Update postcss in next cycle.",
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
+    },
+    {
+      "package": "next",
+      "advisory": "GHSA-2464-fhr4-w9xw",
+      "severity": "critical",
+      "affected_version": ">=16.0.0 <16.3.3",
+      "fixed_version": "16.3.3",
+      "exposure": "Runtime / SVG image optimization",
+      "justification": "Sentinel does not expose image optimization for untrusted SVG files or public uploads. Deployed in isolated Linux container.",
+      "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
+    },
+    {
+      "package": "next",
+      "advisory": "GHSA-p3m5-59mp-jv5r",
+      "severity": "high",
+      "affected_version": ">=16.0.0 <16.3.3",
+      "fixed_version": "16.3.3",
+      "exposure": "Runtime / App Router Server Actions DoS",
+      "justification": "Sentinel uses client-side fetchWithAuth against FastAPI backend; Server Actions are not exposed to untrusted external callers.",
+      "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
+    },
+    {
+      "package": "next",
+      "advisory": "GHSA-673q-mjm6-r5xr",
+      "severity": "critical",
+      "affected_version": ">=16.0.0 <16.3.3",
+      "fixed_version": "16.3.3",
+      "exposure": "Runtime / use cache with typed arrays",
+      "justification": "Sentinel does not use experimental 'use cache' directives returning typed arrays.",
+      "remediation_plan": "Scheduled upgrade to Next.js 16.4.x in next planned maintenance window.",
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
+    },
+    {
+      "package": "undici",
+      "advisory": "GHSA-xjj6-f33q-929c",
+      "severity": "high",
+      "affected_version": "<6.21.1",
+      "fixed_version": "6.21.1",
+      "exposure": "Runtime / HTTP client content-encoding DoS",
+      "justification": "Sentinel frontend runs behind reverse proxy with strict header and decompression limits. External payloads are validated.",
+      "remediation_plan": "Upgrade undici / Node dependency in next release cycle.",
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
+    },
+    {
+      "package": "vite",
+      "advisory": "GHSA-587h-7wmj-h5pm",
+      "severity": "high",
+      "affected_version": "<5.4.14",
+      "fixed_version": "5.4.14",
+      "exposure": "Dev / Build-time / launch-editor on Windows",
+      "justification": "Vite/launch-editor is used purely as dev/test runner (vitest). Never packaged or deployed to production.",
+      "remediation_plan": "Upgrade vite toolchain in next release cycle.",
+      "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
+    },
+    {
+      "package": "zod",
+      "advisory": "GHSA-mrhx-c7xc-m3w5",
+      "severity": "high",
+      "affected_version": "<3.23.8",
+      "fixed_version": "3.23.8",
+      "exposure": "Runtime / validation memory exhaustion on oversized collections",
+      "justification": "Sentinel enforces strict payload size limits at HTTP gateway and BaseService level before parsing.",
+      "remediation_plan": "Upgrade zod to latest patch release.",
       "approved_by": "Vijay Maurya (Platform Owner & Lead Security Officer, SBN Healthcare Solution LLC / SBN Sentinel)"
     }
   ]
