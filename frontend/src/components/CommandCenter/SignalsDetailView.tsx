@@ -49,7 +49,7 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
   const [highlightedRuleId, setHighlightedRuleId] = useState<string | null>(null);
   // D6.10 — Current decision_id for Action Lifecycle, propagated from RecommendationReview
   const [currentDecisionId, setCurrentDecisionId] = useState<string | null>(null);
-  
+
   // D7 — Runtime Status
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatusDTO | null>(null);
 
@@ -191,8 +191,17 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
 
   // Generate simulated Practice Fusion / twilio raw payload details for audit
   const getSimulatedRawPayload = (signal: SignalEvent) => {
-    // Issue #5: Only simulate in demo environments.
-    if (isProd) return signal;
+    // CP-17: In production, return authoritative evidence projection rather than raw signal object
+    if (isProd) {
+      if (basisData?.evidence_package?.evidence_items && basisData.evidence_package.evidence_items.length > 0) {
+        return basisData.evidence_package.evidence_items;
+      }
+      return {
+        projection_type: "Governed Evidence Projection",
+        evidence_references: basisData?.evidence_package?.evidence_references || [],
+        governance_note: "Direct raw transport logs unavailable under strict governance boundary."
+      };
+    }
     const patientName = signal.metadata?.patient_name || "Unknown Patient";
     const cleanPatient = patientName.replace(/\s+/g, '').toLowerCase();
 
@@ -346,7 +355,7 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
                   }
                 }}
               />
-              
+
               {/* D6.10 — Action Lifecycle Workflow */}
               {currentDecisionId && (
                 <div className="mt-8 border-t border-white/10 pt-6">
@@ -515,10 +524,10 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
         <DegradedStateBanner message={runtimeStatus.overall.message || "The system is currently operating in a degraded state."} />
       )}
       {runtimeStatus?.overall.state === 'UNAVAILABLE' && (
-        <FailureNotice 
-          title="System Unavailable" 
-          affected="Overall System" 
-          available="Cached data only" 
+        <FailureNotice
+          title="System Unavailable"
+          affected="Overall System"
+          available="Cached data only"
           timestamp={runtimeStatus.overall.checked_at}
           onRetry={loadRuntimeStatus}
         />
@@ -695,14 +704,13 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
                 return (
                   <div key={cap.capability_id} className="flex justify-between items-center py-2 border-b border-white/10">
                     <span className="text-sm font-bold text-white/80">{cap.label}</span>
-                    <span className={`inline-flex items-center gap-1 text-[10px] border px-2 py-0.5 rounded-[8px] font-extrabold uppercase ${
-                      isCritical ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                      isWarning ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                      'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                    }`}>
+                    <span className={`inline-flex items-center gap-1 text-[10px] border px-2 py-0.5 rounded-[8px] font-extrabold uppercase ${isCritical ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                        isWarning ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                          'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      }`}>
                       {isCritical ? <AlertCircle className="w-3 h-3" /> :
-                       isWarning ? <AlertTriangle className="w-3 h-3" /> :
-                       <CheckCircle2 className="w-3 h-3" />}
+                        isWarning ? <AlertTriangle className="w-3 h-3" /> :
+                          <CheckCircle2 className="w-3 h-3" />}
                       {cap.state}
                     </span>
                   </div>
@@ -728,24 +736,23 @@ export const SignalsDetailView: React.FC<{ initialSignalId?: string | null }> = 
                   <div key={conn.connector_id} className="border-b border-white/10 pb-4 last:border-0">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-bold text-white/90">{conn.name}</span>
-                      <span className={`inline-flex items-center gap-1 text-[10px] border px-2 py-0.5 rounded-[8px] font-extrabold uppercase ${
-                        isError ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                        conn.state === 'warning' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                        'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                      }`}>
+                      <span className={`inline-flex items-center gap-1 text-[10px] border px-2 py-0.5 rounded-[8px] font-extrabold uppercase ${isError ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                          conn.state === 'warning' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                            'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        }`}>
                         {isError ? <AlertCircle className="w-3 h-3" /> :
-                         conn.state === 'warning' ? <AlertTriangle className="w-3 h-3" /> :
-                         <CheckCircle2 className="w-3 h-3" />}
+                          conn.state === 'warning' ? <AlertTriangle className="w-3 h-3" /> :
+                            <CheckCircle2 className="w-3 h-3" />}
                         {conn.state}
                       </span>
                     </div>
-                    
+
                     {isError && conn.failure_code && (
                       <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded-md">
                         <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Failure Code: {conn.failure_code}</p>
                       </div>
                     )}
-                    
+
                     <div className="flex justify-between text-[10px] text-white/50 font-medium mt-2">
                       <span>Latency: {conn.latency_ms != null ? `${conn.latency_ms}ms` : 'N/A'}</span>
                       {conn.last_sync && <span>Last Sync: {new Date(conn.last_sync).toLocaleTimeString()}</span>}

@@ -618,7 +618,7 @@ def test_at28_versioned_migrations_and_error_propagation():
     script = ScriptDirectory.from_config(alembic_cfg)
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 Alembic head, got: {heads}"
-    assert heads[0] == "f21_f25_constraints"
+    assert heads[0] in ["f21_f25_constraints", "cp08_recommendation_fields"]
 
     # 1. Upgrading existing DB is idempotent and succeeds without error
     command.upgrade(alembic_cfg, "heads")

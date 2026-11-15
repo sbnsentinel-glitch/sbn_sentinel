@@ -533,11 +533,11 @@ class GovernanceRegistry:
             row = db.query(GovernedRecommendationMappingModel).filter_by(
                 mapping_id=mapping.mapping_id, version=mapping.version
             ).first()
+            ar = mapping.authority_requirement.value if hasattr(mapping.authority_requirement, "value") else str(mapping.authority_requirement)
+            ls = mapping.lifecycle_state.value if hasattr(mapping.lifecycle_state, "value") else str(mapping.lifecycle_state)
             if not row:
                 eff_from = mapping.effective_from.isoformat() if mapping.effective_from else None
                 cr_at = mapping.created_at.isoformat() if mapping.created_at else None
-                ar = mapping.authority_requirement.value if hasattr(mapping.authority_requirement, "value") else str(mapping.authority_requirement)
-                ls = mapping.lifecycle_state.value if hasattr(mapping.lifecycle_state, "value") else str(mapping.lifecycle_state)
                 db.add(GovernedRecommendationMappingModel(
                     mapping_id=mapping.mapping_id,
                     version=mapping.version,
@@ -555,8 +555,24 @@ class GovernanceRegistry:
                     allowed_action_types_json=json.dumps(mapping.allowed_action_types)
                 ))
                 db.commit()
-            if not any(m.mapping_id == mapping.mapping_id and m.version == mapping.version for m in self._recommendation_mappings):
-                self._recommendation_mappings.append(mapping)
+            else:
+                row.applicable_rule_id = mapping.applicable_rule_id
+                row.eligible_result = mapping.eligible_result
+                row.recommendation_template = mapping.recommendation_template
+                row.authority_requirement = ar
+                row.priority = mapping.priority
+                row.lifecycle_state = ls
+                row.business_impact_template = mapping.business_impact_template
+                row.expected_outcome_template = mapping.expected_outcome_template
+                row.problem_template = mapping.problem_template
+                row.allowed_action_types_json = json.dumps(mapping.allowed_action_types)
+                db.commit()
+
+            self._recommendation_mappings = [
+                m for m in self._recommendation_mappings
+                if not (m.mapping_id == mapping.mapping_id and m.version == mapping.version)
+            ]
+            self._recommendation_mappings.append(mapping)
             self._save()
         except Exception as e:
             db.rollback()
@@ -1220,8 +1236,10 @@ class GovernanceRegistry:
                 if p.policy_id == p_id and p.is_applicable(eval_time)
             ]
             if len(versions) > 1:
-                raise ValueError(f"GOVERNANCE_AMBIGUITY: Multiple active policies found for {p_id}")
-            if versions:
+                # PRR-003: If multiple active versions are effective, resolve to the latest version
+                versions.sort(key=lambda x: str(x.version), reverse=True)
+                applicable.append(versions[0])
+            elif versions:
                 applicable.append(versions[0])
         return applicable
 
@@ -1475,7 +1493,8 @@ def initialize_registry_seeds():
         ))
 
     # 6. Recommendation Mappings (SESR-004)
-    if not governance_registry.get_recommendation_mapping_by_version("REC-MAP-001", "V1"):
+    rec_m1 = governance_registry.get_recommendation_mapping_by_version("REC-MAP-001", "V1")
+    if not rec_m1 or rec_m1.recommendation_template != "Review no-show follow-up according to clinic policy and evaluate reschedule options.":
         governance_registry.register_recommendation_mapping(
             RecommendationMapping(
                 mapping_id="REC-MAP-001",

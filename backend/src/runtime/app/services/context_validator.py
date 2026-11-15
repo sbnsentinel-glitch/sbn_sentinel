@@ -22,7 +22,9 @@ class ContextValidator:
             f"[{context_package['identity']['context_id']}] ContextValidator: Validating package")
 
         # 1. Missing Evidence Detection
-        missing = self._detect_missing(context_package["evidence"]["used"])
+        pre_existing_missing = list(context_package["evidence"].get("missing", []))
+        detected_missing = self._detect_missing(context_package["evidence"]["used"])
+        missing = pre_existing_missing + detected_missing
         context_package["evidence"]["missing"] = missing
 
         # 2. Conflict Detection

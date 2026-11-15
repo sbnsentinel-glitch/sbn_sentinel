@@ -38,6 +38,10 @@ class DecisionContextEngine(BaseService):
                 "[SESR-001] EOS-003 EvidenceStatusPackage is mandatory for DecisionContextEngine.")
 
         event_type = payload.get("event_type", "Unknown")
+        event_id = payload.get("event_id") or payload.get("id") or str(uuid.uuid4())
+        org_id = payload.get("org_id") or payload.get("organization_id")
+        clinic_id = payload.get("clinic_id")
+        correlation_id = payload.get("correlation_id") or event_id
 
         # Resolve evidence objects from the repository using EOS-003 references
         # CP-04: Track requested_refs, resolved_refs, and unresolved_refs as first-class fields
@@ -182,15 +186,33 @@ class DecisionContextEngine(BaseService):
         class DecisionContextInvalid(Exception):
             pass
 
-        new_package = builder.build(event_type, evidence_items)
+        new_package = builder.build(
+            event_id=event_id,
+            normalized_evidence=evidence_items,
+            org_id=org_id,
+            clinic_id=clinic_id,
+            correlation_id=correlation_id
+        )
+
+        # CP-04: Bind unresolved required references to ContextMissingEvidence / retrieval failure
+        if unresolved_refs:
+            for ref in unresolved_refs:
+                new_package["evidence"]["missing"].append({
+                    "ref": ref,
+                    "canonical_entity": "UnresolvedReference",
+                    "reason": "RETRIEVAL_UNRESOLVED"
+                })
+
         validated = validator.validate(new_package)
 
-        # CP-02: Hard gate - Enforce sufficiency_status
-        sufficiency_status = validated.get("governance", {}).get("sufficiency_status", "SUFFICIENT")
+        # CP-02: Hard gate - Enforce sufficiency_status (Default to INSUFFICIENT / UNKNOWN, never promote to SUFFICIENT)
+        sufficiency_status = validated.get("governance", {}).get("sufficiency_status")
+        if not sufficiency_status:
+            sufficiency_status = "INSUFFICIENT"
         context["sufficiency_status"] = sufficiency_status
         context["is_decision_eligible"] = (sufficiency_status == "SUFFICIENT")
 
-        if sufficiency_status in ("INSUFFICIENT", "PENDING_EVIDENCE"):
+        if sufficiency_status in ("INSUFFICIENT", "PENDING_EVIDENCE", "UNAVAILABLE"):
             logger.info(f"[DecisionContextEngine] Context marked decision-ineligible due to status: {sufficiency_status}")
 
         serialized_package = serializer.serialize(validated)

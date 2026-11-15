@@ -225,11 +225,18 @@ def get_decision_basis(
 
     if not evals:
         # No authoritative rules engine output -> not evaluated
+        # D4: Still preserve persisted context evidence, missing, conflicts, and freshness
+        from app.models.intelligence import DecisionContextModel
+        ctx_model = db.query(DecisionContextModel).filter(
+            (DecisionContextModel.event_id == signal.id) | (DecisionContextModel.id == signal.id)
+        ).first()
+        context_id = ctx_model.id if ctx_model else None
+        evidence_dict = _build_evidence(context_id, db) if context_id else {"used": [], "missing": [], "conflicts": [], "freshness": []}
         return {
             "object_ref": _build_object_ref(signal),
             "journey_id": journey_id,
-            "decision_context": _build_decision_context(signal, None, None, db),
-            "evidence": {"used": [], "missing": [], "conflicts": [], "freshness": []},
+            "decision_context": _build_decision_context(signal, context_id, None, db),
+            "evidence": evidence_dict,
             "policy": None,
             "rules": [],
             "provenance": None,

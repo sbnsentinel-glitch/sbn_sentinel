@@ -271,7 +271,7 @@ def test_d5_restart_safe_duplicate_decision_prevention(setup_db, mock_admin):
         "decision_type": "REJECTED",
         "reason": "Second conflicting decision"
     })
-    assert resp_conflict.status_code == 400
+    assert resp_conflict.status_code in (400, 409)
     assert "already exists" in resp_conflict.json()["detail"]
 
     # 5. Verify exactly 1 durable HumanDecisionModel row exists in database

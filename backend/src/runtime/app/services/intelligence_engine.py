@@ -32,9 +32,15 @@ class IntelligenceEngine(BaseService):
         """
         Takes 'finding' and 'context' and generates recommendations using the GovernanceRegistry.
         """
-        finding = payload.get("finding", {})
-        if isinstance(finding, list):
-            finding = finding[0] if finding else {}
+        findings = payload.get("finding", {})
+        if isinstance(findings, list) and findings:
+            # CP-07: Governed precedence - select highest severity finding deterministically
+            severity_rank = {"Critical": 4, "High": 3, "Moderate": 2, "Low": 1, "Information": 0}
+            finding = max(findings, key=lambda f: severity_rank.get(f.get("severity", "Information"), 0))
+        elif isinstance(findings, dict):
+            finding = findings
+        else:
+            finding = {}
         context = payload.get("context", {})
 
         if not finding:
@@ -61,7 +67,8 @@ class IntelligenceEngine(BaseService):
         rule_id = finding.get("rule_id", "UNKNOWN")
         result = finding.get("result", "NOT_EVALUABLE")
 
-        eval_time = datetime.utcnow()
+        # CP-13: Shared immutable governance_evaluation_time
+        eval_time = payload.get("governance_evaluation_time") or datetime.utcnow()
         mapping = governance_registry.get_applicable_recommendation_mapping(
             rule_id, result, eval_time)
 
@@ -147,15 +154,15 @@ class IntelligenceEngine(BaseService):
             "recommendation_id": rec_id
         }
 
-        # CP-25: Governed priority score derivation
-        priority_map = {"Critical": 90, "High": 75, "Moderate": 50, "Low": 25, "Information": 10}
-        score = priority_map.get(mapping.priority, None)
+        # CP-25: No false precision - remove arbitrary numeric score until governed scoring contract exists
+        score = None
 
         # Keep legacy dict shape for UI compatibility
         result_payload = {
             "risk_level": mapping.priority,
             "priority": mapping.priority,
             "priority_score": score,
+            "rule_id": rule_id,
             "problem": formatted_problem,
             "reason": f"Governed Mapping {mapping.mapping_id}",
             "operational_impact": formatted_impact,

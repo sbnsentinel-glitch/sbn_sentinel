@@ -22,6 +22,12 @@ class RulesEngine(BaseService):
 
     def _init_default_handlers(self):
         def eval_sch_001_v1(inputs: Dict[str, Any]) -> str:
+            # CP-28: Guard against unconfirmed appointment/no-show source capability in production
+            source = inputs.get("source_connector") or inputs.get("source") or "Practice Fusion"
+            from app.core.config import settings
+            if getattr(settings, "ENVIRONMENT", "").upper() == "PRODUCTION" and not getattr(settings, "SYNTHETIC_TEST_ENABLED", False):
+                if source in ("Practice Fusion", "PRACTICE_FUSION", "practice_fusion"):
+                    return "NOT_EVALUABLE"
             if inputs.get("primary_context") == "Operational" and inputs.get("secondary_context") == "Provider Schedule Gap":
                 return "CONDITION_MET"
             return "CONDITION_NOT_MET"
@@ -84,7 +90,7 @@ class RulesEngine(BaseService):
                     "reason": "Policy engine blocked execution."
                 }
 
-        now = datetime.utcnow()
+        now = payload.get("governance_evaluation_time") or decision_context.get("governance_evaluation_time") or datetime.utcnow()
         findings = []
 
         # We assume the policy result includes evaluated policy objects or IDs.

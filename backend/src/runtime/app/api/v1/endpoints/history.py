@@ -270,5 +270,6 @@ def _build_historical_lifecycle(rec: RecommendationModel, db: Session) -> Dict[s
             "decisions": decisions_out,
             "actions": actions_out
         },
+        "errors": errors,
         "technical_state": technical_state
     }

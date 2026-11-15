@@ -64,6 +64,8 @@ class DataAuditEngine:
             db.add(db_signal)
             if should_close:
                 db.commit()
+            else:
+                db.flush()
 
             # Generate Immutable System Audit Log
             self._log_internal(
@@ -71,7 +73,8 @@ class DataAuditEngine:
                 user_system="system@sentinel.local",
                 action=f"Generated Intelligence Record: {event.type}",
                 module="DataManagementEngine",
-                correlation_id=event.id
+                correlation_id=event.id,
+                should_commit=should_close
             )
             return True
         except Exception as e:
@@ -110,7 +113,8 @@ class DataAuditEngine:
             user_system: str,
             action: str,
             module: str,
-            correlation_id: str = None):
+            correlation_id: str = None,
+            should_commit: bool = True):
         """Internal helper to insert into AuditLogModel."""
         db_audit = AuditLogModel(
             user_system=user_system,
@@ -119,7 +123,10 @@ class DataAuditEngine:
             correlation_id=correlation_id
         )
         db.add(db_audit)
-        db.commit()
+        if should_commit:
+            db.commit()
+        else:
+            db.flush()
 
     def log_failure_event(
         self,

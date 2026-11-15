@@ -63,11 +63,16 @@ async def record_human_decision(
     )
 
     if result["status"] == "ERROR":
+        msg = result.get("message", "")
+        if "AUTHORIZ" in msg or "scope" in msg:
+            status_code = 403
+        elif "already exists" in msg.lower() or "conflict" in msg.lower():
+            status_code = 409
+        else:
+            status_code = 400
         raise HTTPException(
-            status_code=403 if "AUTHORIZ" in result.get(
-                "message",
-                "") else 400,
-            detail=result["message"])
+            status_code=status_code,
+            detail=msg)
 
     return result
 

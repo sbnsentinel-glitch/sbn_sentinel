@@ -329,13 +329,21 @@ class ProcessingOrchestrator:
         """
         t_start = time.time()
         try:
+            raw_p = event.raw_payload or {}
+            target_org = getattr(event, "org_id", None) or raw_p.get("org_id") or raw_p.get("organization_id")
+            target_clinic = getattr(event, "clinic_id", None) or raw_p.get("clinic_id")
+
             request = ServiceRequest(
                 correlation_id=event.correlation_id,
                 calling_module="EventPipeline",
                 target_service="DecisionContextEngine",
                 payload={
                     "eos_003_package": getattr(event, "evidence_package", {}),
-                    "event_type": event.event_type
+                    "event_type": event.event_type,
+                    "event_id": event.id,
+                    "org_id": target_org,
+                    "clinic_id": target_clinic,
+                    "correlation_id": event.correlation_id
                 }
             )
 
@@ -374,10 +382,9 @@ class ProcessingOrchestrator:
             )
             event.layer4_duration_ms = (time.time() - t_start) * 1000
 
-            db.commit()
-
-            # Persist D4 Context Evidence Records
+            # Persist D4 Context Evidence Records atomically before single commit
             self._persist_context_evidence_records(event, pkg, db)
+            db.commit()
 
             self.logger.debug(
                 f"[L4] DCE resolved context for event {event.id}: {event.decision_context.primary_context}")
@@ -394,19 +401,31 @@ class ProcessingOrchestrator:
         """
         t_start = time.time()
         try:
+            gov_eval_time = getattr(event, "governance_evaluation_time", None) or datetime.utcnow()
+            event.governance_evaluation_time = gov_eval_time
+
             decision_context = {
+                "id": event.decision_context.id if event.decision_context else None,
                 "evidence_package": getattr(
                     event,
                     "evidence_package",
                     {}),
                 "event_type": event.event_type,
-                "primary_context": event.decision_context.primary_context if event.decision_context else "Unknown"}
+                "source": event.source,
+                "primary_context": event.decision_context.primary_context if event.decision_context else "Unknown",
+                "sufficiency_status": event.decision_context.sufficiency_status if event.decision_context else None,
+                "is_decision_eligible": (event.decision_context.sufficiency_status == "SUFFICIENT") if event.decision_context else False,
+                "governance_evaluation_time": gov_eval_time
+            }
 
             request = ServiceRequest(
                 correlation_id=event.correlation_id,
                 calling_module="EventPipeline",
                 target_service="PolicyEngine",
-                payload={"decision_context": decision_context}
+                payload={
+                    "decision_context": decision_context,
+                    "governance_evaluation_time": gov_eval_time
+                }
             )
 
             response = policy_engine.invoke(request)
@@ -437,6 +456,7 @@ class ProcessingOrchestrator:
         """
         t_start = time.time()
         try:
+            gov_eval_time = getattr(event, "governance_evaluation_time", None) or datetime.utcnow()
             request = ServiceRequest(
                 correlation_id=event.correlation_id,
                 calling_module="EventPipeline",
@@ -448,9 +468,11 @@ class ProcessingOrchestrator:
                         "secondary_context": event.decision_context.secondary_context,
                         "target_reference": event.decision_context.operational_target_reference,
                         "target_type": event.decision_context.operational_target_type,
-                        "event_type": event.event_type
+                        "event_type": event.event_type,
+                        "source": event.source
                     } if event.decision_context else {},
                     "policy_result": getattr(event, "policy_result", {}),
+                    "governance_evaluation_time": gov_eval_time,
                     # SESR-008: Pass journey identity so RuleEvaluationRecords are traceable
                     "journey_id": event.correlation_id
                 }
@@ -473,14 +495,17 @@ class ProcessingOrchestrator:
                 event.rule_findings = []
                 event.rule_version = "Unknown"
             else:
-                first_finding = active_findings[0]
-                event.rule_findings = [RuleFindingModel(
-                    rule_id=first_finding.get("rule_id", "Unknown"),
-                    severity=first_finding.get("result", "Information"),  # For DB compatibility
-                    description=first_finding.get("result", ""),  # Temporarily store exact result
-                    evaluation_id=first_finding.get("evaluation_id", "UNKNOWN_EVALUATION")
-                )]
-                event.rule_version = first_finding.get("rule_version", "Unknown")
+                # CP-07: Persist all findings that belong to the context
+                event.rule_findings = [
+                    RuleFindingModel(
+                        rule_id=f.get("rule_id", "Unknown"),
+                        severity=f.get("severity") or f.get("result", "Information"),
+                        description=f.get("result", ""),
+                        evaluation_id=f.get("evaluation_id", "UNKNOWN_EVALUATION")
+                    )
+                    for f in active_findings
+                ]
+                event.rule_version = active_findings[0].get("rule_version", "Unknown")
 
             event.layer6_duration_ms = (time.time() - t_start) * 1000
 
@@ -528,6 +553,7 @@ class ProcessingOrchestrator:
                         event,
                         "policy_result",
                         {}),
+                    "governance_evaluation_time": getattr(event, "governance_evaluation_time", None),
                     "journey_id": event.correlation_id})
 
             response = intelligence_engine.invoke(request)
@@ -636,13 +662,25 @@ class ProcessingOrchestrator:
 
             intel_result = getattr(event, "intelligence_result", {})
 
+            target_org_id = getattr(event, "org_id", None) or (payload.get("org_id") or payload.get("organization_id") if payload else None)
+            target_clinic_id = getattr(event, "clinic_id", None) or (payload.get("clinic_id") if payload else None)
+            if not target_org_id and event.raw_payload:
+                target_org_id = event.raw_payload.get("org_id") or event.raw_payload.get("organization_id")
+                target_clinic_id = target_clinic_id or event.raw_payload.get("clinic_id")
+
             signal_event = SignalEvent(
                 id=event.id,
                 source=event.source,
                 type=event.event_type,
                 message=payload.get("detail", ""),
                 timestamp=datetime.utcnow().isoformat(),
-                metadata={"pipeline_event_id": event.id, "priority": event.priority, "correlation_id": event.correlation_id},
+                metadata={
+                    "pipeline_event_id": event.id,
+                    "priority": event.priority,
+                    "correlation_id": event.correlation_id,
+                    "org_id": target_org_id,
+                    "clinic_id": target_clinic_id
+                },
                 risk_level=intel_result.get("risk_level") or (intel_model.priority if intel_model else "Information"),
                 problem=intel_result.get("problem", ""),
                 reason=intel_result.get("reason", ""),
@@ -650,7 +688,7 @@ class ProcessingOrchestrator:
                 recommended_action=intel_result.get("action") or (intel_model.recommendation if intel_model else ""),
                 expected_outcome=intel_result.get("expected_outcome", ""),
                 explainability_log=intel_result.get("explainability_log", ""),
-                priority_score=intel_result.get("priority_score", 0),
+                priority_score=intel_result.get("priority_score", None),
                 primary_context=context_model.primary_context if context_model else "",
                 secondary_context=context_model.secondary_context if context_model else "",
                 context_confidence="",
@@ -659,6 +697,8 @@ class ProcessingOrchestrator:
                 estimated_financial_exposure=revenue_model.estimated_exposure if revenue_model else "UNAVAILABLE",
                 revenue_confidence=revenue_model.financial_priority if revenue_model else "UNAVAILABLE",
                 operational_dependency="",
+                org_id=target_org_id,
+                clinic_id=target_clinic_id,
             )
 
             class PersistenceError(Exception):
@@ -673,21 +713,22 @@ class ProcessingOrchestrator:
             # Save Decision Record Audit Trail
             intel_result = getattr(event, "intelligence_result", {})
             if intel_result:
+                selected_rule_id = intel_result.get("rule_id") or (event.rule_findings[0].rule_id if event.rule_findings else "SYS-BLOCKED")
                 decision_record = DecisionRecordModel(
                     event_id=event.id,
                     evidence=__import__("json").loads(
                         __import__("json").dumps(
                             event.evidence_package,
                             default=str)) if event.evidence_package else {},
-                    rule_id=event.rule_findings[0].rule_id if event.rule_findings else "SYS-BLOCKED",
+                    rule_id=selected_rule_id,
                     policy_status=getattr(event, "policy_result", {}).get("is_permitted", False),
                     recommendation=__import__("json").loads(
                         __import__("json").dumps(intel_result, default=str)),
                     # SESR-010 Bindings
-                    policy_version=getattr(event, "policy_version", "Unknown"),
-                    rule_version=getattr(event, "rule_version", "Unknown"),
-                    mapping_version=intel_result.get("mapping_version", "Unknown"),
-                    evaluation_timestamp=datetime.utcnow()
+                    policy_version=getattr(event, "policy_version", None),
+                    rule_version=getattr(event, "rule_version", None),
+                    mapping_version=intel_result.get("mapping_version", None),
+                    evaluation_timestamp=getattr(event, "governance_evaluation_time", None) or datetime.utcnow()
                 )
                 db.add(decision_record)
 
@@ -992,7 +1033,7 @@ class ProcessingOrchestrator:
                     resolution_status=resolution_status
                 ))
 
-            db.commit()
+            db.flush()
         except Exception as e:
             try:
                 db.rollback()

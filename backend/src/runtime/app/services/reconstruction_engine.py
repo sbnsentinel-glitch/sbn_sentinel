@@ -181,16 +181,33 @@ class ReconstructionEngine:
                 )
 
             # 3b. Reproduce Recommendation
+            # CP-12: Capture immutable historical render inputs & reuse pure rendering function
             reproduced_rec = {}
             if rule_result == "CONDITION_MET" and historical_mapping:
+                try:
+                    action_rendered = historical_mapping.recommendation_template.format(**inputs) if historical_mapping.recommendation_template else ""
+                    impact_rendered = historical_mapping.business_impact_template.format(**inputs) if historical_mapping.business_impact_template else ""
+                    outcome_rendered = historical_mapping.expected_outcome_template.format(**inputs) if historical_mapping.expected_outcome_template else ""
+                    problem_rendered = historical_mapping.problem_template.format(**inputs) if getattr(historical_mapping, "problem_template", None) else None
+                except KeyError:
+                    return ReproductionResult(
+                        status="NOT_REPRODUCIBLE",
+                        recommendation_id=recommendation_id,
+                        original=original_rec,
+                        reproduced=None,
+                        differences=[],
+                        diagnostic_stage="historical_logic",
+                        diagnostic_code="MISSING_RENDER_INPUTS"
+                    )
+
                 reproduced_rec = {
                     "priority": historical_mapping.priority,
-                    "business_impact": historical_mapping.business_impact_template,
-                    "action": historical_mapping.recommendation_template,
-                    "expected_outcome": historical_mapping.expected_outcome_template,
+                    "business_impact": impact_rendered,
+                    "action": action_rendered,
+                    "expected_outcome": outcome_rendered,
                     "mapping_version": historical_mapping.version,
                     "authority": getattr(historical_mapping.authority_requirement, "value", str(historical_mapping.authority_requirement)),
-                    "problem": getattr(historical_mapping, "problem_template", None)
+                    "problem": problem_rendered
                 }
             elif rule_result == "CONDITION_NOT_MET":
                 reproduced_rec = {
@@ -203,8 +220,7 @@ class ReconstructionEngine:
                     "expected_outcome": None
                 }
 
-            # 4. Compare Outputs
-            # Compare canonical contract fields
+            # 4. Compare Outputs against canonical contract
             diffs = []
             compare_keys = ["priority", "action", "mapping_version"]
             # If historical original record had these fields persisted, include them in comparison

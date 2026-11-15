@@ -69,34 +69,35 @@ class PolicyEngine(BaseService):
         self._handlers = {}
 
     def _execute_policy_logic(self, policy, decision_context, evidence_package, event_type) -> tuple[bool, str]:
-        if not self._handlers:
-            def eval_pol_001_v1(ctx, ep, et):
-                if not ep or (not ep.get("evidence_items") and not ep.get("evidence_references")):
-                    return False, "BLOCKED: No operational evidence available."
-                return True, f"PASS: {policy.policy_id}"
+        # CP-14: Deterministic policy evaluation independent of closure
+        p_id = policy.policy_id
+        p_ver = policy.version
 
-            def eval_pol_002_v1(ctx, ep, et):
-                allowed_event_types = ["EHR", "Phone", "Email", "Manual"]
-                if et not in allowed_event_types:
-                    return False, f"BLOCKED: Event type '{et}' not authorized."
-                return True, f"PASS: {policy.policy_id}"
+        if p_id == "POL-001":
+            if not evidence_package or (not evidence_package.get("evidence_items") and not evidence_package.get("evidence_references")):
+                return False, f"BLOCKED: No operational evidence available for {p_id} v{p_ver}."
+            return True, f"PASS: {p_id} v{p_ver}"
 
-            def eval_pol_003_v1(ctx, ep, et):
-                # CP-14: Restricted to Practice Fusion sources in production
-                # Check source in ctx or evidence_package
-                source = ctx.get("source") or (ep.get("source") if isinstance(ep, dict) else None)
-                if source and source not in ("Practice Fusion", "EHR", "PRACTICE_FUSION", "System"):
-                    return False, f"BLOCKED: Source '{source}' is not authorized by POL-003."
-                return True, f"PASS: {policy.policy_id}"
+        elif p_id == "POL-002":
+            allowed_event_types = ["EHR", "Phone", "Email", "Manual"]
+            if event_type not in allowed_event_types:
+                return False, f"BLOCKED: Event type '{event_type}' not authorized for {p_id} v{p_ver}."
+            return True, f"PASS: {p_id} v{p_ver}"
 
-            self._handlers[("POL-001", "V1")] = eval_pol_001_v1
-            self._handlers[("POL-002", "V1")] = eval_pol_002_v1
-            self._handlers[("POL-003", "V1")] = eval_pol_003_v1
+        elif p_id == "POL-003":
+            # CP-14: In production, POL-003 strictly requires authenticated Practice Fusion source.
+            from app.core.config import settings
+            source = decision_context.get("source") or (evidence_package.get("source") if isinstance(evidence_package, dict) else None)
+            is_prod = getattr(settings, "ENVIRONMENT", "").upper() == "PRODUCTION"
+            if is_prod:
+                if not source or not any(pf in str(source).lower() for pf in ("practice fusion", "practice_fusion", "pf")):
+                    return False, f"BLOCKED: Source '{source}' is not authorized by {p_id} v{p_ver} (Practice Fusion required in production)."
+            else:
+                if not source or source not in ("Practice Fusion", "PRACTICE_FUSION", "practice_fusion", "PF", "EHR_SYSTEM", "EHR", "System"):
+                    return False, f"BLOCKED: Source '{source}' is not authorized by {p_id} v{p_ver}."
+            return True, f"PASS: {p_id} v{p_ver}"
 
-        handler = self._handlers.get((policy.policy_id, policy.version))
-        if not handler:
-            return False, f"NOT_EVALUABLE: Unknown or unsupported policy {policy.policy_id} v{policy.version}"
-        return handler(decision_context, evidence_package, event_type)
+        return False, f"NOT_EVALUABLE: Unknown or unsupported policy {p_id} v{p_ver}"
 
     @property
     def service_name(self) -> str:
@@ -128,16 +129,17 @@ class PolicyEngine(BaseService):
         event_type = decision_context.get("event_type", "Unknown")
 
         # Get Applicable Policies (SESR-003 PRR-003)
+        # CP-13: Use shared immutable governance_evaluation_time
         from datetime import datetime
-        now = datetime.utcnow()
+        now = decision_context.get("governance_evaluation_time") or datetime.utcnow()
         applicable_policies = self.registry.get_applicable_policies(eval_time=now)
 
-        # CP-02: Check sufficiency status from ContextValidator
+        # CP-02: Hard gate - Check sufficiency status from ContextValidator
         sufficiency_status = decision_context.get("sufficiency_status")
-        is_eligible = decision_context.get("is_decision_eligible", True)
-        if sufficiency_status in ("INSUFFICIENT", "PENDING_EVIDENCE") or is_eligible is False:
+        is_eligible = decision_context.get("is_decision_eligible", False)
+        if sufficiency_status != "SUFFICIENT" or is_eligible is False:
             failed.append("GOV-SUFFICIENCY-GATE")
-            notes.append(f"BLOCKED: Decision context is not eligible for recommendations (status={sufficiency_status}).")
+            notes.append(f"BLOCKED: Decision context is not eligible for recommendations (status={sufficiency_status or 'UNAVAILABLE'}).")
 
         for policy in applicable_policies:
             evaluated.append(f"{policy.policy_id} / {policy.version}")
@@ -151,13 +153,16 @@ class PolicyEngine(BaseService):
 
         is_permitted = len(failed) == 0 and len(applicable_policies) > 0
 
+        # CP-14: Expose actual evaluated policy version instead of hardcoded synthetic version
+        actual_version = applicable_policies[0].version if applicable_policies else "V1"
+
         result = PolicyResult(
             policy_id=str(uuid.uuid4()),
             is_permitted=is_permitted,
             evaluated_policies=evaluated,
             failed_policies=failed,
             governance_notes=" | ".join(notes),
-            policy_version="v1.0"
+            policy_version=actual_version
         )
 
         self.logger.info(

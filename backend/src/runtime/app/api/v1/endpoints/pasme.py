@@ -130,7 +130,24 @@ def get_platform_health(current_user: User = Depends(
 
     from app.services.rules_engine import rules_engine
     readiness = rules_engine.validate_governance_readiness()
-    rules_engine_status = "online" if readiness.get("status") == "READY" else "degraded"
+    rules_engine_status = "READY" if readiness.get("status") == "READY" else "NOT_READY"
+
+    # CP-30: Storage / DMAE readiness check
+    storage_status = "READY"
+    try:
+        from app.db.database import SessionLocal
+        import sqlalchemy
+        test_db = SessionLocal()
+        test_db.execute(sqlalchemy.text("SELECT 1"))
+        test_db.close()
+    except Exception:
+        storage_status = "NOT_READY"
+
+    # CP-30: Connector readiness / capability check
+    connector_status = "READY"
+    from app.core.config import settings
+    if getattr(settings, "ENVIRONMENT", "").upper() == "PRODUCTION" and not getattr(settings, "EHR_CLIENT_ID", ""):
+        connector_status = "UNAVAILABLE"
 
     return {
         "status": "healthy" if not MAINTENANCE_MODE else "maintenance",
@@ -141,11 +158,11 @@ def get_platform_health(current_user: User = Depends(
             "uptime_seconds": round(time.time() - process.create_time(), 2)
         },
         "modules": {
-            "connector_engine": "online",
+            "connector_engine": connector_status,
             "rules_engine": rules_engine_status,
-            "context_engine": "online",
-            "dmae": "online",
-            "siame": "online"
+            "context_engine": "READY",
+            "dmae": storage_status,
+            "siame": "READY"
         }
     }
 
@@ -155,20 +172,38 @@ def get_all_rules(db: Session = Depends(get_db), current_user: User = Depends(
         RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value]))):
     """
     Retrieve all business rules for PASME administration.
+    CP-23: Authoritative projection from GovernanceRegistry.
     """
-    rules = db.query(RuleModel).all()
+    from app.services.governance_registry import governance_registry
+    gov_rules = list(governance_registry._rules.values())
+    if not gov_rules:
+        rules = db.query(RuleModel).all()
+        return [
+            {
+                "id": r.id,
+                "rule_id": r.rule_id,
+                "version": "V1",
+                "name": r.name,
+                "category": r.category,
+                "severity": r.severity,
+                "is_active": r.is_active,
+                "description": r.description
+            }
+            for r in rules
+        ]
 
     return [
         {
-            "id": r.id,
+            "id": r.rule_id,
             "rule_id": r.rule_id,
-            "name": r.name,
-            "category": r.category,
-            "severity": r.severity,
-            "is_active": r.is_active,
-            "description": r.description
+            "version": r.version,
+            "name": r.rule_id,
+            "category": "Operational",
+            "severity": "Normal",
+            "is_active": (r.lifecycle_state.value == "ACTIVE"),
+            "description": r.logic_description
         }
-        for r in rules
+        for r in gov_rules
     ]
 
 
@@ -177,32 +212,42 @@ def toggle_rule(rule_id: str, db: Session = Depends(get_db), current_user: User 
         RoleChecker([UserRole.SYSTEM_ADMINISTRATOR.value]))):
     """
     Toggle a rule's active state. Audited by DMAE.
-    CP-23: Synchronize with governed GovernanceRegistry RuleVersion.
+    CP-23: Controls authoritative GovernanceRegistry RuleVersion.
     """
-    rule = db.query(RuleModel).filter(RuleModel.rule_id == rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-
-    rule.is_active = not rule.is_active
-
-    # CP-23: Also update governed rule state in GovernanceRegistry if present
     from app.services.governance_registry import governance_registry, LifecycleState
     gov_rule_id = rule_id if rule_id.startswith("RULE-") else f"RULE-{rule_id}"
     gov_rule = governance_registry.get_rule_by_version(gov_rule_id, "V1")
-    if gov_rule:
-        new_state = LifecycleState.ACTIVE if rule.is_active else LifecycleState.RETIRED
-        object.__setattr__(gov_rule, "lifecycle_state", new_state)
+    if not gov_rule:
+        for r in governance_registry._rules.values():
+            if r.rule_id == rule_id or r.rule_id == f"RULE-{rule_id}":
+                gov_rule = r
+                break
 
-    # MS-012/MS-010 Audit Requirement: Administrative actions are permanently traceable
+    if not gov_rule:
+        rule = db.query(RuleModel).filter(RuleModel.rule_id == rule_id).first()
+        if not rule:
+            raise HTTPException(status_code=404, detail="Rule not found")
+        rule.is_active = not rule.is_active
+        db.commit()
+        return {"rule_id": rule.rule_id, "is_active": rule.is_active}
+
+    new_state = LifecycleState.RETIRED if gov_rule.lifecycle_state == LifecycleState.ACTIVE else LifecycleState.ACTIVE
+    object.__setattr__(gov_rule, "lifecycle_state", new_state)
+
+    # Sync to DB RuleModel if present
+    rule = db.query(RuleModel).filter(RuleModel.rule_id == rule_id).first()
+    if rule:
+        rule.is_active = (new_state == LifecycleState.ACTIVE)
+        db.commit()
+
     audit_data = AuditLogCreate(
         user_email=current_user.email,
-        action=f"{'Enabled' if rule.is_active else 'Disabled'} Rule",
-        resource=f"Rule: {rule.rule_id}"
+        action=f"{'Enabled' if new_state == LifecycleState.ACTIVE else 'Disabled'} Governed Rule",
+        resource=f"Rule: {gov_rule.rule_id}"
     )
     data_audit_engine.log_audit_event(audit_data)
 
-    db.commit()
-    return {"rule_id": rule.rule_id, "is_active": rule.is_active}
+    return {"rule_id": gov_rule.rule_id, "version": gov_rule.version, "is_active": (new_state == LifecycleState.ACTIVE)}
 
 
 @router.post("/maintenance/toggle")
